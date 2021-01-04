@@ -1,0 +1,23 @@
+﻿<ContentDialog
+    x:Class="SensorXmpp.OpenWeatherMapDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SensorXmpp"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Open Weather Map"
+    PrimaryButtonText="Test"
+    SecondaryButtonText="Cancel"
+    PrimaryButtonClick="ConnectButtonClick"
+    SecondaryButtonClick="CancelButtonClick">
+
+    <StackPanel>
+        <TextBlock TextWrapping="Wrap" Margin="0,16,0,0">For the application to be able to get information from Open Weather Map, you need to provide some information below. When you are satisfied, press the Test button to test the information. You can get an API key at the Open Weather Map web page.</TextBlock>
+        <TextBox Name="ApiKeyInput" Header="API Key:" Margin="0,16,0,0" />
+        <StackPanel Orientation="Horizontal">
+            <TextBox Name="LocationInput" Header="Location:" Margin="0,16,0,0" Width="240" />
+            <TextBox Name="CountryInput" Header="Country Code:" Margin="16,16,0,0" Width="240" />
+        </StackPanel>
+    </StackPanel>
+</ContentDialog>
