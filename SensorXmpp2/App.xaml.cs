@@ -155,8 +155,8 @@ namespace SensorXmpp
 							if (Updated)
 							{
 								await RuntimeSettings.SetAsync("OpenWeatherMap.ApiKey", ApiKey);
-								await RuntimeSettings.GetAsync("OpenWeatherMap.Location", Location);
-								await RuntimeSettings.GetAsync("OpenWeatherMap.Country", Country);
+								await RuntimeSettings.SetAsync("OpenWeatherMap.Location", Location);
+								await RuntimeSettings.SetAsync("OpenWeatherMap.Country", Country);
 							}
 							
 							break;
