@@ -44,13 +44,13 @@ namespace SensorXmpp
 			if (Response.TryGetValue("name", out Obj) && Obj is string Name)
 				Result.Add(new StringField(ThingReference.Empty, Timestamp, "Name", Name, FieldType.Identity, FieldQoS.AutomaticReadout));
 
-			if (Response.TryGetValue("id", out Obj) && Obj is string Id)
-				Result.Add(new StringField(ThingReference.Empty, Timestamp, "ID", Id, FieldType.Identity, FieldQoS.AutomaticReadout));
+			if (Response.TryGetValue("id", out Obj))
+				Result.Add(new StringField(ThingReference.Empty, Timestamp, "ID", Obj.ToString(), FieldType.Identity, FieldQoS.AutomaticReadout));
 
-			if (Response.TryGetValue("timezone", out Obj) && Obj is double TimeZone)
+			if (Response.TryGetValue("timezone", out Obj) && Obj is int TimeZone)
 				Result.Add(new QuantityField(ThingReference.Empty, Timestamp, "Time Zone", TimeZone / 3600.0, 2, "h", FieldType.Identity, FieldQoS.AutomaticReadout));
 
-			if (Response.TryGetValue("visibility", out Obj) && Obj is double Visibility)
+			if (Response.TryGetValue("visibility", out Obj) && Obj is int Visibility)
 				Result.Add(new QuantityField(ThingReference.Empty, Timestamp, "Visibility", Visibility, 0, "m", FieldType.Momentary, FieldQoS.AutomaticReadout));
 
 			if (Response.TryGetValue("coord", out Obj) && Obj is Dictionary<string, object> Coord)
@@ -76,11 +76,11 @@ namespace SensorXmpp
 				if (Main.TryGetValue("temp_max", out Obj) && Obj is double TempMax)
 					Result.Add(new QuantityField(ThingReference.Empty, Timestamp, "Temperature, Max", TempMax, 2, "°C", FieldType.Peak, FieldQoS.AutomaticReadout));
 
-				if (Main.TryGetValue("pressure", out Obj) && Obj is double Pressure)
-					Result.Add(new QuantityField(ThingReference.Empty, Timestamp, "Pressure", Pressure, 2, "hPa", FieldType.Momentary, FieldQoS.AutomaticReadout));
+				if (Main.TryGetValue("pressure", out Obj) && Obj is int Pressure)
+					Result.Add(new QuantityField(ThingReference.Empty, Timestamp, "Pressure", Pressure, 0, "hPa", FieldType.Momentary, FieldQoS.AutomaticReadout));
 
-				if (Main.TryGetValue("humidity", out Obj) && Obj is double Humidity)
-					Result.Add(new QuantityField(ThingReference.Empty, Timestamp, "Humidity", Humidity, 2, "%", FieldType.Momentary, FieldQoS.AutomaticReadout));
+				if (Main.TryGetValue("humidity", out Obj) && Obj is int Humidity)
+					Result.Add(new QuantityField(ThingReference.Empty, Timestamp, "Humidity", Humidity, 0, "%", FieldType.Momentary, FieldQoS.AutomaticReadout));
 			}
 
 			if (Response.TryGetValue("wind", out Obj) && Obj is Dictionary<string, object> Wind)
@@ -88,32 +88,35 @@ namespace SensorXmpp
 				if (Wind.TryGetValue("speed", out Obj) && Obj is double Speed)
 					Result.Add(new QuantityField(ThingReference.Empty, Timestamp, "Wind, Speed", Speed, 1, "m/s", FieldType.Momentary, FieldQoS.AutomaticReadout));
 
-				if (Wind.TryGetValue("deg", out Obj) && Obj is double Deg)
+				if (Wind.TryGetValue("deg", out Obj) && Obj is int Deg)
 					Result.Add(new QuantityField(ThingReference.Empty, Timestamp, "Wind, Direction", Deg, 0, "°", FieldType.Momentary, FieldQoS.AutomaticReadout));
 			}
 
 			if (Response.TryGetValue("clouds", out Obj) && Obj is Dictionary<string, object> Clouds)
 			{
-				if (Clouds.TryGetValue("all", out Obj) && Obj is double All)
+				if (Clouds.TryGetValue("all", out Obj) && Obj is int All)
 					Result.Add(new QuantityField(ThingReference.Empty, Timestamp, "Cloudiness", All, 0, "%", FieldType.Momentary, FieldQoS.AutomaticReadout));
 			}
 
 			if (Response.TryGetValue("sys", out Obj) && Obj is Dictionary<string, object> Sys)
 			{
-				if (Sys.TryGetValue("id", out Obj) && Obj is double WeatherId)
-					Result.Add(new Int32Field(ThingReference.Empty, Timestamp, "Weather, ID", (int)WeatherId, FieldType.Momentary, FieldQoS.AutomaticReadout));
+				if (Sys.TryGetValue("id", out Obj) && Obj is int WeatherId)
+					Result.Add(new Int32Field(ThingReference.Empty, Timestamp, "Weather, ID", WeatherId, FieldType.Momentary, FieldQoS.AutomaticReadout));
 
 				if (Sys.TryGetValue("country", out Obj) && Obj is string Country2)
 					Result.Add(new StringField(ThingReference.Empty, Timestamp, "Country", Country2, FieldType.Identity, FieldQoS.AutomaticReadout));
 
-				if (Sys.TryGetValue("sunrise", out Obj) && Obj is double Sunrise)
+				if (Sys.TryGetValue("sunrise", out Obj) && Obj is int Sunrise)
 					Result.Add(new DateTimeField(ThingReference.Empty, Timestamp, "Sunrise", JSON.UnixEpoch.AddSeconds(Sunrise), FieldType.Momentary, FieldQoS.AutomaticReadout));
 
-				if (Sys.TryGetValue("sunset", out Obj) && Obj is double Sunset)
+				if (Sys.TryGetValue("sunset", out Obj) && Obj is int Sunset)
 					Result.Add(new DateTimeField(ThingReference.Empty, Timestamp, "Sunset", JSON.UnixEpoch.AddSeconds(Sunset), FieldType.Momentary, FieldQoS.AutomaticReadout));
 			}
 
-			if (Response.TryGetValue("weather", out Obj) && Obj is Dictionary<string, object> Weather)
+			if (Response.TryGetValue("weather", out Obj) && 
+				Obj is Array WeatherArray &&
+				WeatherArray.Length == 1 &&
+				WeatherArray.GetValue(0) is Dictionary<string, object> Weather)
 			{
 				if (Weather.TryGetValue("main", out Obj) && Obj is string Main2)
 					Result.Add(new StringField(ThingReference.Empty, Timestamp, "Weather", Main2, FieldType.Momentary, FieldQoS.AutomaticReadout));

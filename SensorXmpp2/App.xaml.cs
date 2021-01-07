@@ -65,6 +65,8 @@ namespace SensorXmpp
 			this.Suspending += OnSuspending;
 		}
 
+		#region UWP interface
+
 		/// <summary>
 		/// Invoked when the application is launched normally by the end user.  Other entry points
 		/// will be used such as when the application is launched to open a specific file.
@@ -105,6 +107,52 @@ namespace SensorXmpp
 			}
 		}
 
+		#endregion
+
+		#region GUI synchronization
+
+		public delegate Task GuiMethod();
+
+		public static async Task RunGui(GuiMethod Callback)
+		{
+			TaskCompletionSource<bool> Result = new TaskCompletionSource<bool>();
+
+			await MainPage.Instance.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+			{
+				try
+				{
+					await Callback();
+					Result.TrySetResult(true);
+				}
+				catch (Exception ex)
+				{
+					Result.TrySetException(ex);
+				}
+			});
+
+			await Result.Task;
+		}
+
+		public static Task Error(Exception ex)
+		{
+			Log.Critical(ex);
+			return Error(ex.Message);
+		}
+
+		public static Task Error(string Message)
+		{
+			return MessageBox(Message, "Error");
+		}
+
+		public static async Task MessageBox(string Message, string Title)
+		{
+			MessageDialog Dialog = new MessageDialog(Message, Title);
+			await MainPage.Instance.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
+				async () => await Dialog.ShowAsync());
+		}
+
+		#endregion
+
 		private async void Init()
 		{
 			try
@@ -144,6 +192,8 @@ namespace SensorXmpp
 				string Country = await RuntimeSettings.GetAsync("OpenWeatherMap.Country", string.Empty);
 				bool Updated = false;
 
+				// Open Weather Map settings:
+
 				while (true)
 				{
 					if (!string.IsNullOrEmpty(ApiKey) && !string.IsNullOrEmpty(Location) && !string.IsNullOrEmpty(Country))
@@ -158,7 +208,7 @@ namespace SensorXmpp
 								await RuntimeSettings.SetAsync("OpenWeatherMap.Location", Location);
 								await RuntimeSettings.SetAsync("OpenWeatherMap.Country", Country);
 							}
-							
+
 							break;
 						}
 						catch (Exception ex)
@@ -180,139 +230,110 @@ namespace SensorXmpp
 					});
 				}
 
+				// XMPP connection:
+
 				string Host = await RuntimeSettings.GetAsync("XmppHost", "waher.se");
 				int Port = (int)await RuntimeSettings.GetAsync("XmppPort", 5222);
 				string UserName = await RuntimeSettings.GetAsync("XmppUserName", string.Empty);
 				string PasswordHash = await RuntimeSettings.GetAsync("XmppPasswordHash", string.Empty);
 				string PasswordHashMethod = await RuntimeSettings.GetAsync("XmppPasswordHashMethod", string.Empty);
 
-				if (string.IsNullOrEmpty(Host) ||
-					Port <= 0 || Port > ushort.MaxValue ||
-					string.IsNullOrEmpty(UserName) ||
-					string.IsNullOrEmpty(PasswordHash) ||
-					string.IsNullOrEmpty(PasswordHashMethod))
-				{
-					await MainPage.Instance.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
-						async () => await this.ShowConnectionDialog(Host, Port, UserName));
-				}
-				else
-				{
-					this.xmppClient = new XmppClient(Host, Port, UserName, PasswordHash, PasswordHashMethod, "en",
-						typeof(App).GetTypeInfo().Assembly)     // Add "new LogSniffer()" to the end, to output communication to the log.
-					{
-						AllowCramMD5 = false,
-						AllowDigestMD5 = false,
-						AllowPlain = false,
-						AllowScramSHA1 = true,
-						AllowScramSHA256 = true
-					};
-					this.xmppClient.OnStateChanged += this.StateChanged;
-					this.xmppClient.OnConnectionError += this.ConnectionError;
+				Updated = false;
 
-					Log.Informational("Connecting to " + this.xmppClient.Host + ":" + this.xmppClient.Port.ToString());
-					this.xmppClient.Connect();
+				while (true)
+				{
+					if (!string.IsNullOrEmpty(Host) && !string.IsNullOrEmpty(UserName) && !string.IsNullOrEmpty(PasswordHash))
+					{
+						try
+						{
+							this.xmppClient?.Dispose();
+							this.xmppClient = null;
+
+							this.xmppClient = new XmppClient(Host, Port, UserName, PasswordHash, PasswordHashMethod, "en", typeof(App).GetTypeInfo().Assembly)
+							{
+								AllowCramMD5 = false,
+								AllowDigestMD5 = false,
+								AllowPlain = false,
+								AllowScramSHA1 = true,
+								AllowScramSHA256 = true
+							};
+
+							this.xmppClient.AllowRegistration();                /* Allows registration on servers that do not require signatures. */
+							// this.xmppClient.AllowRegistration(Key, Secret);	/* Allows registration on servers requiring a signature of the registration request. */
+
+							this.xmppClient.OnStateChanged += (sender, State) =>
+							{
+								Log.Informational("Changing state: " + State.ToString());
+
+								if (State == XmppState.Connected)
+									Log.Informational("Connected as " + this.xmppClient.FullJID);
+
+								return Task.CompletedTask;
+							};
+
+							this.xmppClient.OnConnectionError += (sender, ex) =>
+							{
+								Log.Error(ex.Message);
+								return Task.CompletedTask;
+							};
+
+							Log.Informational("Connecting to " + this.xmppClient.Host + ":" + this.xmppClient.Port.ToString());
+							this.xmppClient.Connect();
+
+							switch (await this.xmppClient.WaitStateAsync(10000, XmppState.Connected, XmppState.Error, XmppState.Offline))
+							{
+								case 0: // Connected
+									break;
+
+								case 1: // Error
+									throw new Exception("An error occurred when trying to connect. Please revise parameters and try again.");
+
+								case 2: // Offline
+								default:
+									throw new Exception("Unable to connect to host. Please revise parameters and try again.");
+							}
+
+							if (Updated)
+							{
+								await RuntimeSettings.SetAsync("XmppHost", Host = this.xmppClient.Host);
+								await RuntimeSettings.SetAsync("XmppPort", Port = this.xmppClient.Port);
+								await RuntimeSettings.SetAsync("XmppUserName", UserName = this.xmppClient.UserName);
+								await RuntimeSettings.SetAsync("XmppPasswordHash", PasswordHash = this.xmppClient.PasswordHash);
+								await RuntimeSettings.SetAsync("XmppPasswordHashMethod", PasswordHashMethod = this.xmppClient.PasswordHashMethod);
+							}
+
+							break;
+						}
+						catch (Exception ex)
+						{
+							await Error(ex);
+						}
+					}
+
+					await RunGui(async () =>
+					{
+						AccountDialog Dialog = new AccountDialog(Host, Port, UserName);
+						if (await Dialog.ShowAsync() == ContentDialogResult.Primary)
+						{
+							Host = Dialog.Host;
+							Port = Dialog.Port;
+							UserName = Dialog.UserName;
+							PasswordHash = Dialog.Password;
+							PasswordHashMethod = string.Empty;
+							Updated = true;
+						}
+					});
 				}
+
+				// Setting up device
+
+				await this.SetVCard();
+				await this.RegisterDevice();
 			}
 			catch (Exception ex)
 			{
 				await Error(ex);
 			}
-		}
-
-		public delegate Task GuiMethod();
-
-		public static async Task RunGui(GuiMethod Callback)
-		{
-			TaskCompletionSource<bool> Result = new TaskCompletionSource<bool>();
-
-			await MainPage.Instance.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
-			{
-				try
-				{
-					await Callback();
-					Result.TrySetResult(true);
-				}
-				catch (Exception ex)
-				{
-					Result.TrySetException(ex);
-				}
-			});
-
-			await Result.Task;
-		}
-
-		public static async Task Error(Exception ex)
-		{
-			Log.Critical(ex);
-			await MessageBox(ex.Message, "Error");
-		}
-
-		public static async Task MessageBox(string Message, string Title)
-		{
-			MessageDialog Dialog = new MessageDialog(Message, Title);
-			await MainPage.Instance.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
-				async () => await Dialog.ShowAsync());
-		}
-
-		private async Task ShowConnectionDialog(string Host, int Port, string UserName)
-		{
-			try
-			{
-				AccountDialog Dialog = new AccountDialog(Host, Port, UserName);
-
-				switch (await Dialog.ShowAsync())
-				{
-					case ContentDialogResult.Primary:
-						this.xmppClient?.Dispose();
-						this.xmppClient = null;
-
-						this.xmppClient = new XmppClient(Dialog.Host, Dialog.Port, Dialog.UserName, Dialog.Password, "en", typeof(App).GetTypeInfo().Assembly)
-						{
-							AllowCramMD5 = false,
-							AllowDigestMD5 = false,
-							AllowPlain = false,
-							AllowScramSHA1 = true,
-							AllowScramSHA256 = true
-						};
-
-						this.xmppClient.AllowRegistration();                // Allows registration on servers that do not require signatures.
-																			// this.xmppClient.AllowRegistration(Key, Secret);	// Allows registration on servers requiring a signature of the registration request.
-
-						this.xmppClient.OnStateChanged += this.TestConnectionStateChanged;
-						this.xmppClient.OnConnectionError += this.ConnectionError;
-
-						Log.Informational("Connecting to " + this.xmppClient.Host + ":" + this.xmppClient.Port.ToString());
-						this.xmppClient.Connect();
-						break;
-
-					case ContentDialogResult.Secondary:
-						break;
-				}
-			}
-			catch (Exception ex)
-			{
-				Log.Critical(ex);
-			}
-		}
-
-		private Task StateChanged(object _, XmppState State)
-		{
-			Log.Informational("Changing state: " + State.ToString());
-
-			if (State == XmppState.Connected)
-			{
-				Log.Informational("Connected as " + this.xmppClient.FullJID);
-				Task.Run(this.SetVCard);
-				Task.Run(this.RegisterDevice);
-			}
-
-			return Task.CompletedTask;
-		}
-
-		private Task ConnectionError(object _, Exception ex)
-		{
-			Log.Error(ex.Message);
-			return Task.CompletedTask;
 		}
 
 		private void AttachFeatures()
@@ -425,36 +446,6 @@ namespace SensorXmpp
 			this.pepClient?.Publish(new SensorData(), null, null);
 
 			this.lastPublished = Now;
-		}
-
-		private async Task TestConnectionStateChanged(object Sender, XmppState State)
-		{
-			Log.Informational("Changing state: " + State.ToString());
-
-			switch (State)
-			{
-				case XmppState.Connected:
-					await RuntimeSettings.SetAsync("XmppHost", this.xmppClient.Host);
-					await RuntimeSettings.SetAsync("XmppPort", this.xmppClient.Port);
-					await RuntimeSettings.SetAsync("XmppUserName", this.xmppClient.UserName);
-					await RuntimeSettings.SetAsync("XmppPasswordHash", this.xmppClient.PasswordHash);
-					await RuntimeSettings.SetAsync("XmppPasswordHashMethod", this.xmppClient.PasswordHashMethod);
-
-					this.xmppClient.OnStateChanged -= this.TestConnectionStateChanged;
-					this.xmppClient.OnStateChanged += this.StateChanged;
-					await this.SetVCard();
-					await this.RegisterDevice();
-					break;
-
-				case XmppState.Error:
-				case XmppState.Offline:
-					if (!(this.xmppClient is null))
-					{
-						await MainPage.Instance.Dispatcher.RunAsync(CoreDispatcherPriority.Normal,
-							async () => await this.ShowConnectionDialog(this.xmppClient.Host, this.xmppClient.Port, this.xmppClient.UserName));
-					}
-					break;
-			}
 		}
 
 		private async Task QueryVCardHandler(object Sender, IqEventArgs e)
