@@ -249,14 +249,16 @@ namespace SensorXmpp
 							this.xmppClient?.Dispose();
 							this.xmppClient = null;
 
-							this.xmppClient = new XmppClient(Host, Port, UserName, PasswordHash, PasswordHashMethod, "en", typeof(App).GetTypeInfo().Assembly)
-							{
-								AllowCramMD5 = false,
-								AllowDigestMD5 = false,
-								AllowPlain = false,
-								AllowScramSHA1 = true,
-								AllowScramSHA256 = true
-							};
+							if (string.IsNullOrEmpty(PasswordHashMethod))
+								this.xmppClient = new XmppClient(Host, Port, UserName, PasswordHash, "en", typeof(App).GetTypeInfo().Assembly);
+							else
+								this.xmppClient = new XmppClient(Host, Port, UserName, PasswordHash, PasswordHashMethod, "en", typeof(App).GetTypeInfo().Assembly);
+
+							this.xmppClient.AllowCramMD5 = false;
+							this.xmppClient.AllowDigestMD5 = false;
+							this.xmppClient.AllowPlain = false;
+							this.xmppClient.AllowScramSHA1 = true;
+							this.xmppClient.AllowScramSHA256 = true;
 
 							this.xmppClient.AllowRegistration();                /* Allows registration on servers that do not require signatures. */
 							// this.xmppClient.AllowRegistration(Key, Secret);	/* Allows registration on servers requiring a signature of the registration request. */
