@@ -467,7 +467,9 @@ namespace SensorXmpp
 					{
 						try
 						{
-							await RuntimeSettings.SetAsync("ThingRegistry.Owner", e.JID);
+							Log.Notice("Owner claimed device.", string.Empty, e.JID);
+
+							await RuntimeSettings.SetAsync("ThingRegistry.Owner", this.ownerJid = e.JID);
 							await RuntimeSettings.SetAsync("ThingRegistry.Key", string.Empty);
 						}
 						catch (Exception ex)
@@ -480,7 +482,9 @@ namespace SensorXmpp
 					{
 						try
 						{
-							await RuntimeSettings.SetAsync("ThingRegistry.Owner", string.Empty);
+							Log.Notice("Owner disowned device.", string.Empty, this.ownerJid);
+
+							await RuntimeSettings.SetAsync("ThingRegistry.Owner", this.ownerJid = string.Empty);
 							await this.RegisterDevice();
 						}
 						catch (Exception ex)
@@ -700,7 +704,7 @@ namespace SensorXmpp
 					if (e.Ok)
 					{
 						await RuntimeSettings.SetAsync("ThingRegistry.Location", true);
-						await RuntimeSettings.SetAsync("ThingRegistry.Owner", e.OwnerJid);
+						await RuntimeSettings.SetAsync("ThingRegistry.Owner", this.ownerJid = e.OwnerJid);
 
 						if (string.IsNullOrEmpty(e.OwnerJid))
 						{
@@ -746,7 +750,7 @@ namespace SensorXmpp
 					{
 						if (e.Disowned)
 						{
-							await RuntimeSettings.SetAsync("ThingRegistry.Owner", string.Empty);
+							await RuntimeSettings.SetAsync("ThingRegistry.Owner", this.ownerJid = string.Empty);
 							await this.RegisterDevice(MetaInfo);
 						}
 						else if (e.Ok)
