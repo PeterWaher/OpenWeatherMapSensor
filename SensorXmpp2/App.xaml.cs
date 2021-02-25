@@ -50,6 +50,7 @@ namespace SensorXmpp
 		private string thingRegistryJid = string.Empty;
 		private string provisioningJid = string.Empty;
 		private string ownerJid = string.Empty;
+		private OpenWeatherMapApi weatherClient = null;
 		private SensorServer sensorServer = null;
 		private ThingRegistryClient registryClient = null;
 		private ProvisioningClient provisioningClient = null;
@@ -263,7 +264,8 @@ namespace SensorXmpp
 					{
 						try
 						{
-							await OpenWeatherMapApi.GetData(ApiKey, Location, Country);
+							this.weatherClient = new OpenWeatherMapApi(ApiKey, Location, Country);
+							await this.weatherClient.GetData();	// Test parameters
 
 							if (Updated)
 							{
@@ -791,7 +793,7 @@ namespace SensorXmpp
 					if (e.IsIncluded(FieldType.Identity))
 						Fields.Add(new StringField(ThingReference.Empty, Now, "Device ID", this.deviceId, FieldType.Identity, FieldQoS.AutomaticReadout));
 
-					// TODO: Do Readout
+					Fields.AddRange(await this.weatherClient.GetData());
 
 					e.ReportFields(true, Fields);
 				}

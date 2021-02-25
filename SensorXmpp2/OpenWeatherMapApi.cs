@@ -20,12 +20,12 @@ namespace SensorXmpp
 			this.country = Country;
 		}
 
-		public Task GetData()
+		public Task<Field[]> GetData()
 		{
 			return this.GetData(this.location, this.country);
 		}
 
-		public Task GetData(string Location, string Country)
+		public Task<Field[]> GetData(string Location, string Country)
 		{
 			return GetData(this.apiKey, Location, Country);
 		}
@@ -37,6 +37,9 @@ namespace SensorXmpp
 			Dictionary<string, object> Response = await InternetContent.GetAsync(Uri, new KeyValuePair<string, string>("Accept", "application/json")) as Dictionary<string, object>;
 			List<Field> Result = new List<Field>();
 			DateTime Timestamp = DateTime.Now;
+
+			if (Response is null)
+				throw new Exception("Unexpected response from API.");
 
 			if (Response.TryGetValue("dt", out object Obj) && Obj is int dt)
 				Timestamp = JSON.UnixEpoch.AddSeconds(dt);
