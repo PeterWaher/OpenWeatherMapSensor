@@ -34,14 +34,14 @@ namespace SensorXmpp
 		{
 			Uri Uri = new Uri("http://api.openweathermap.org/data/2.5/weather?q=" + Location + "," + Country + "&units=metric&APPID=" + ApiKey);
 
-			Dictionary<string, object> Response = await InternetContent.GetAsync(Uri, new KeyValuePair<string, string>("Accept", "application/json")) as Dictionary<string, object>;
+			object Obj = await InternetContent.GetAsync(Uri, new KeyValuePair<string, string>("Accept", "application/json")) as Dictionary<string, object>;
 			List<Field> Result = new List<Field>();
 			DateTime Timestamp = DateTime.Now;
 
-			if (Response is null)
+			if (!(Obj is Dictionary<string, object> Response))
 				throw new Exception("Unexpected response from API.");
 
-			if (Response.TryGetValue("dt", out object Obj) && Obj is int dt)
+			if (Response.TryGetValue("dt", out Obj) && Obj is int dt)
 				Timestamp = JSON.UnixEpoch.AddSeconds(dt);
 
 			if (Response.TryGetValue("name", out Obj) && Obj is string Name)

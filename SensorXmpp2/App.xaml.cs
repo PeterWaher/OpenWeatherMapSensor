@@ -16,6 +16,8 @@ using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
 
 using Waher.Content;
+using Waher.Content.QR;
+using Waher.Content.QR.Encoding;
 using Waher.Content.Xml;
 using Waher.Events;
 using Waher.Networking.XMPP;
@@ -46,6 +48,7 @@ namespace SensorXmpp
 		private XmppClient xmppClient = null;
 		private PepClient pepClient = null;
 
+		private readonly QrEncoder qrEncoder = new QrEncoder();
 		private string deviceId;
 		private string thingRegistryJid = string.Empty;
 		private string provisioningJid = string.Empty;
@@ -265,7 +268,7 @@ namespace SensorXmpp
 						try
 						{
 							this.weatherClient = new OpenWeatherMapApi(ApiKey, Location, Country);
-							await this.weatherClient.GetData();	// Test parameters
+							await this.weatherClient.GetData(); // Test parameters
 
 							if (Updated)
 							{
@@ -696,10 +699,11 @@ namespace SensorXmpp
 			}
 
 			int c = MetaInfo.Length;
-			Array.Resize<MetaDataTag>(ref MetaInfo, c + 1);
-			MetaInfo[c] = new MetaDataStringTag("KEY", Key);
+			MetaDataTag[] MetaInfo2 = new MetaDataTag[c + 1];
+			Array.Copy(MetaInfo, 0, MetaInfo2, 0, c);
+			MetaInfo2[c] = new MetaDataStringTag("KEY", Key);
 
-			this.registryClient.RegisterThing(false, MetaInfo, async (sender, e) =>
+			this.registryClient.RegisterThing(false, MetaInfo2, async (sender, e) =>
 			{
 				try
 				{
@@ -709,20 +713,17 @@ namespace SensorXmpp
 						await RuntimeSettings.SetAsync("ThingRegistry.Owner", this.ownerJid = e.OwnerJid);
 
 						if (string.IsNullOrEmpty(e.OwnerJid))
-						{
-							string ClaimUrl = registryClient.EncodeAsIoTDiscoURI(MetaInfo);
-							string FilePath = ApplicationData.Current.LocalFolder.Path + Path.DirectorySeparatorChar + "Sensor.iotdisco";
-
 							Log.Informational("Registration successful.");
-							Log.Informational(ClaimUrl, new KeyValuePair<string, object>("Path", FilePath));
-
-							File.WriteAllText(FilePath, ClaimUrl);
-						}
 						else
 						{
 							await RuntimeSettings.SetAsync("ThingRegistry.Key", string.Empty);
-							Log.Informational("Registration updated. Device has an owner.", new KeyValuePair<string, object>("Owner", e.OwnerJid));
+							Log.Informational("Registration updated. Device has an owner.",
+								new KeyValuePair<string, object>("Owner", e.OwnerJid));
+						
+							MetaInfo2[c] = new MetaDataStringTag("JID", this.xmppClient.BareJID);
 						}
+
+						this.GenerateIoTDiscoUri(MetaInfo2);
 					}
 					else
 					{
@@ -735,6 +736,18 @@ namespace SensorXmpp
 					Log.Critical(ex);
 				}
 			}, null);
+		}
+
+		private void GenerateIoTDiscoUri(MetaDataTag[] MetaInfo)
+		{
+			string FilePath = ApplicationData.Current.LocalFolder.Path + Path.DirectorySeparatorChar + "Sensor.iotdisco";
+			string DiscoUri = registryClient.EncodeAsIoTDiscoURI(MetaInfo);
+			QrMatrix M = qrEncoder.GenerateMatrix(CorrectionLevel.L, DiscoUri);
+			byte[] Pixels = M.ToRGBA(300, 300);
+
+			MainPage.Instance.AddLogMessage(Pixels, 300, 300);
+
+			File.WriteAllText(FilePath, DiscoUri);
 		}
 
 		private async Task UpdateRegistration(MetaDataTag[] MetaInfo, string OwnerJid)
@@ -756,7 +769,16 @@ namespace SensorXmpp
 							await this.RegisterDevice(MetaInfo);
 						}
 						else if (e.Ok)
+						{
 							Log.Informational("Registration update successful.");
+
+							int c = MetaInfo.Length;
+							MetaDataTag[] MetaInfo2 = new MetaDataTag[c + 1];
+							Array.Copy(MetaInfo, 0, MetaInfo2, 0, c);
+							MetaInfo2[c] = new MetaDataStringTag("JID", this.xmppClient.BareJID);
+							
+							this.GenerateIoTDiscoUri(MetaInfo2);
+						}
 						else
 						{
 							Log.Error("Registration update failed.");
@@ -859,7 +881,7 @@ namespace SensorXmpp
 			this.lastPublished = Now;
 		}
 
-		private async void SampleValues(object State)
+		private void SampleValues(object State)
 		{
 			try
 			{
