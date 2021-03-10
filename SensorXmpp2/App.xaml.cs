@@ -348,7 +348,7 @@ namespace SensorXmpp
 									case XmppState.Error:
 									case XmppState.Offline:
 										if (ConnectionEstablished)
-											this.xmppClient.Reconnect();
+											this.xmppClient?.Reconnect();
 
 										ConnectionEstablished = false;
 										break;
