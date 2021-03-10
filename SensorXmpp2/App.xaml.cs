@@ -134,6 +134,9 @@ namespace SensorXmpp
 		{
 			var deferral = e.SuspendingOperation.GetDeferral();
 
+			this.sampleTimer?.Dispose();
+			this.sampleTimer = null;
+
 			this.pepClient?.Dispose();
 			this.pepClient = null;
 
@@ -148,9 +151,6 @@ namespace SensorXmpp
 
 			this.xmppClient?.Dispose();
 			this.xmppClient = null;
-
-			this.sampleTimer?.Dispose();
-			this.sampleTimer = null;
 
 			db?.Stop()?.Wait();
 			db?.Flush()?.Wait();
@@ -301,12 +301,13 @@ namespace SensorXmpp
 				#endregion
 
 				#region XMPP Connection
-
+				
 				string Host = await RuntimeSettings.GetAsync("XmppHost", "waher.se");
 				int Port = (int)await RuntimeSettings.GetAsync("XmppPort", 5222);
 				string UserName = await RuntimeSettings.GetAsync("XmppUserName", string.Empty);
 				string PasswordHash = await RuntimeSettings.GetAsync("XmppPasswordHash", string.Empty);
 				string PasswordHashMethod = await RuntimeSettings.GetAsync("XmppPasswordHashMethod", string.Empty);
+				bool ConnectionEstablished = false;
 
 				Updated = false;
 
@@ -337,8 +338,21 @@ namespace SensorXmpp
 							{
 								Log.Informational("Changing state: " + State.ToString());
 
-								if (State == XmppState.Connected)
-									Log.Informational("Connected as " + this.xmppClient.FullJID);
+								switch (State)
+								{
+									case XmppState.Connected:
+										Log.Informational("Connected as " + this.xmppClient.FullJID);
+										ConnectionEstablished = true;
+										break;
+
+									case XmppState.Error:
+									case XmppState.Offline:
+										if (ConnectionEstablished)
+											this.xmppClient.Reconnect();
+
+										ConnectionEstablished = false;
+										break;
+								}
 
 								return Task.CompletedTask;
 							};
@@ -719,7 +733,7 @@ namespace SensorXmpp
 							await RuntimeSettings.SetAsync("ThingRegistry.Key", string.Empty);
 							Log.Informational("Registration updated. Device has an owner.",
 								new KeyValuePair<string, object>("Owner", e.OwnerJid));
-						
+
 							MetaInfo2[c] = new MetaDataStringTag("JID", this.xmppClient.BareJID);
 						}
 
@@ -776,7 +790,7 @@ namespace SensorXmpp
 							MetaDataTag[] MetaInfo2 = new MetaDataTag[c + 1];
 							Array.Copy(MetaInfo, 0, MetaInfo2, 0, c);
 							MetaInfo2[c] = new MetaDataStringTag("JID", this.xmppClient.BareJID);
-							
+
 							this.GenerateIoTDiscoUri(MetaInfo2);
 						}
 						else
@@ -836,13 +850,30 @@ namespace SensorXmpp
 
 			this.chatServer = new ChatServer(this.xmppClient, this.bobClient, this.sensorServer, this.provisioningClient);
 			this.pepClient = new PepClient(this.xmppClient);
+
+			DateTime Now2 = DateTime.Now;
+			this.sampleTimer = new Timer(this.SampleTimerElapsed, null, 60000 - (Now2.Second * 1000) - Now2.Millisecond, 60000);
 		}
 
-		private void PublishMomentaryValues()
+		private async void SampleTimerElapsed(object P)
 		{
-			if (this.xmppClient is null || this.xmppClient.State != XmppState.Connected)
-				return;
+			try
+			{
+				if (this.xmppClient.State == XmppState.Error || this.xmppClient.State == XmppState.Offline)
+					this.xmppClient.Reconnect();
 
+				Field[] Fields = await this.weatherClient.GetData();
+
+				this.PublishMomentaryValues(Fields);
+			}
+			catch (Exception ex)
+			{
+				Log.Critical(ex);
+			}
+		}
+
+		private void PublishMomentaryValues(params Field[] Fields)
+		{
 			/* Three methods to publish data using the Publish/Subscribe pattern exists:
 			 * 
 			 * 1) Using the presence stanza. In this chase, simply include the sensor data XML when you set your online presence:
@@ -872,31 +903,18 @@ namespace SensorXmpp
 			 *             ...
 			 *          }
 			 *       }
+			 *       
+			 * You should also report read values to the sensor-data server object. It manages current event subscriptions made by
+			 * peers. By regularly reporting new momentary values to the sensor-data server object, it maintains such event subscribers
+			 * current, in accordance with individual event subcription rules.
 			 */
 
 			DateTime Now = DateTime.Now;
 
-			this.pepClient?.Publish(new SensorData(), null, null);
+			this.pepClient?.Publish(new SensorData(Fields), null, null);
+			this.sensorServer?.NewMomentaryValues(Fields);
 
 			this.lastPublished = Now;
-		}
-
-		private void SampleValues(object State)
-		{
-			try
-			{
-				DateTime Timestamp = DateTime.Now;
-
-				if (Timestamp.Second == 0 && this.xmppClient != null &&
-					(this.xmppClient.State == XmppState.Error || this.xmppClient.State == XmppState.Offline))
-				{
-					this.xmppClient.Reconnect();
-				}
-			}
-			catch (Exception ex)
-			{
-				Log.Critical(ex);
-			}
 		}
 
 		#endregion
