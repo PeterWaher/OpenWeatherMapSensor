@@ -60,6 +60,7 @@ namespace SensorXmpp
 		private BobClient bobClient = null;
 		private ChatServer chatServer = null;
 		private DateTime lastPublished = DateTime.MinValue;
+		private DateTime connectionStateChanged = DateTime.MinValue;
 
 		/// <summary>
 		/// Initializes the singleton application object.  This is the first line of authored code
@@ -336,6 +337,8 @@ namespace SensorXmpp
 
 							this.xmppClient.OnStateChanged += (sender, State) =>
 							{
+								this.connectionStateChanged = DateTime.Now;
+
 								Log.Informational("Changing state: " + State.ToString());
 
 								switch (State)
@@ -859,8 +862,12 @@ namespace SensorXmpp
 		{
 			try
 			{
-				if (this.xmppClient.State == XmppState.Error || this.xmppClient.State == XmppState.Offline)
+				if (this.xmppClient.State == XmppState.Error ||
+					this.xmppClient.State == XmppState.Offline ||
+					(this.xmppClient.State != XmppState.Connected && (DateTime.Now - this.connectionStateChanged).TotalSeconds > 10))
+				{
 					this.xmppClient.Reconnect();
+				}
 
 				Field[] Fields = await this.weatherClient.GetData();
 
