@@ -480,7 +480,14 @@ namespace SensorXmpp
 				}
 
 				if (!string.IsNullOrEmpty(this.provisioningJid))
+				{
 					this.provisioningClient = new ProvisioningClient(this.xmppClient, this.provisioningJid, this.ownerJid);
+
+					this.provisioningClient.CacheCleared += (sender, e) =>
+					{
+						Log.Informational("Rule cache cleared.");
+					};
+				}
 
 				if (!string.IsNullOrEmpty(this.thingRegistryJid))
 				{
