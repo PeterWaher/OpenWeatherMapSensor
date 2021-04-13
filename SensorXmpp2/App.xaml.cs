@@ -23,6 +23,7 @@ using Waher.Events;
 using Waher.Networking.XMPP;
 using Waher.Networking.XMPP.BitsOfBinary;
 using Waher.Networking.XMPP.Chat;
+using Waher.Networking.XMPP.Control;
 using Waher.Networking.XMPP.PEP;
 using Waher.Networking.XMPP.Provisioning;
 using Waher.Networking.XMPP.ServiceDiscovery;
@@ -34,6 +35,7 @@ using Waher.Runtime.Inventory;
 using Waher.Runtime.Settings;
 using Waher.Security;
 using Waher.Things;
+using Waher.Things.ControlParameters;
 using Waher.Things.SensorData;
 
 namespace SensorXmpp
@@ -55,6 +57,7 @@ namespace SensorXmpp
 		private string ownerJid = string.Empty;
 		private OpenWeatherMapApi weatherClient = null;
 		private SensorServer sensorServer = null;
+		private ControlServer controlServer = null;
 		private ThingRegistryClient registryClient = null;
 		private ProvisioningClient provisioningClient = null;
 		private BobClient bobClient = null;
@@ -302,7 +305,7 @@ namespace SensorXmpp
 				#endregion
 
 				#region XMPP Connection
-				
+
 				string Host = await RuntimeSettings.GetAsync("XmppHost", "waher.se");
 				int Port = (int)await RuntimeSettings.GetAsync("XmppPort", 5222);
 				string UserName = await RuntimeSettings.GetAsync("XmppUserName", string.Empty);
@@ -529,6 +532,10 @@ namespace SensorXmpp
 				#endregion
 
 				this.SetupSensorServer();
+				this.SetupControlServer();
+				this.SetupChatServer();
+
+				await this.SetupSampleTimer();
 			}
 			catch (Exception ex)
 			{
@@ -856,14 +863,37 @@ namespace SensorXmpp
 			this.pepClient?.Dispose();
 			this.pepClient = null;
 
-			this.chatServer?.Dispose();
-			this.chatServer = null;
-
-			this.chatServer = new ChatServer(this.xmppClient, this.bobClient, this.sensorServer, this.provisioningClient);
 			this.pepClient = new PepClient(this.xmppClient);
+		}
 
-			DateTime Now2 = DateTime.Now;
-			this.sampleTimer = new Timer(this.SampleTimerElapsed, null, 60000 - (Now2.Second * 1000) - Now2.Millisecond, 60000);
+		private async Task SetupSampleTimer()
+		{
+			this.ConfigEnabled(await this.GetEnabled());
+		}
+
+		public Task<bool> GetEnabled()
+		{
+			return RuntimeSettings.GetAsync("OpenWeatherMap.Enabled", true);
+		}
+
+		public async Task SetEnabled(bool Enabled)
+		{
+			await RuntimeSettings.SetAsync("OpenWeatherMap.Enabled", Enabled);
+			this.ConfigEnabled(Enabled);
+		}
+
+		private void ConfigEnabled(bool Enabled)
+		{
+			if (Enabled)
+			{
+				DateTime Now2 = DateTime.Now;
+				this.sampleTimer = new Timer(this.SampleTimerElapsed, null, 60000 - (Now2.Second * 1000) - Now2.Millisecond, 60000);
+			}
+			else
+			{
+				this.sampleTimer?.Dispose();
+				this.sampleTimer = null;
+			}
 		}
 
 		private async void SampleTimerElapsed(object P)
@@ -933,5 +963,33 @@ namespace SensorXmpp
 		}
 
 		#endregion
+
+		#region Actuator Control Parameters
+
+		private void SetupControlServer()
+		{
+			this.controlServer?.Dispose();
+			this.controlServer = null;
+
+			this.controlServer = new ControlServer(this.xmppClient, this.provisioningClient,
+				new BooleanControlParameter("Enabled", "Operation", "Enabled", "If sensor is enabled.",
+					async Node => await this.GetEnabled(),
+					async (Node, Value) => await this.SetEnabled(Value)));
+		}
+
+		#endregion
+
+		#region Chat Server
+
+		private void SetupChatServer()
+		{
+			this.chatServer?.Dispose();
+			this.chatServer = null;
+
+			this.chatServer = new ChatServer(this.xmppClient, this.bobClient, this.sensorServer, this.controlServer, this.provisioningClient);
+		}
+
+		#endregion
+
 	}
 }
