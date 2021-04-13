@@ -862,9 +862,6 @@ namespace SensorXmpp
 				}
 			};
 
-			if (this.bobClient is null)
-				this.bobClient = new BobClient(this.xmppClient, Path.Combine(Path.GetTempPath(), "BitsOfBinary"));
-
 			this.pepClient?.Dispose();
 			this.pepClient = null;
 
@@ -992,6 +989,9 @@ namespace SensorXmpp
 		{
 			this.chatServer?.Dispose();
 			this.chatServer = null;
+
+			if (this.bobClient is null)
+				this.bobClient = new BobClient(this.xmppClient, Path.Combine(Path.GetTempPath(), "BitsOfBinary"));
 
 			this.chatServer = new ChatServer(this.xmppClient, this.bobClient, this.sensorServer, this.controlServer, this.provisioningClient);
 		}
