@@ -849,7 +849,10 @@ namespace SensorXmpp
 					else
 					{
 						if (e.IsIncluded(FieldType.Identity))
-							Fields.Add(new StringField(ThingReference.Empty, Now, "Device ID", this.deviceId, FieldType.Identity, FieldQoS.AutomaticReadout));
+						{
+							Fields.Add(new StringField(ThingReference.Empty, Now, "Device ID", this.deviceId, 
+								FieldType.Identity, FieldQoS.AutomaticReadout));
+						}
 
 						Fields.AddRange(await this.weatherClient.GetData());
 					}
