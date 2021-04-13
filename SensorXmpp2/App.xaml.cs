@@ -888,11 +888,13 @@ namespace SensorXmpp
 			{
 				DateTime Now2 = DateTime.Now;
 				this.sampleTimer = new Timer(this.SampleTimerElapsed, null, 60000 - (Now2.Second * 1000) - Now2.Millisecond, 60000);
+				Log.Notice("Enabling Sampling.");
 			}
 			else
 			{
 				this.sampleTimer?.Dispose();
 				this.sampleTimer = null;
+				Log.Notice("Disabling Sampling.");
 			}
 		}
 
