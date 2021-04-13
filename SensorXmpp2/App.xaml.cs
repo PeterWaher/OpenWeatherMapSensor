@@ -844,10 +844,15 @@ namespace SensorXmpp
 					List<Field> Fields = new List<Field>();
 					DateTime Now = DateTime.Now;
 
-					if (e.IsIncluded(FieldType.Identity))
-						Fields.Add(new StringField(ThingReference.Empty, Now, "Device ID", this.deviceId, FieldType.Identity, FieldQoS.AutomaticReadout));
+					if (this.sampleTimer is null)
+						Log.Notice("Sensor is disabled.");
+					else
+					{
+						if (e.IsIncluded(FieldType.Identity))
+							Fields.Add(new StringField(ThingReference.Empty, Now, "Device ID", this.deviceId, FieldType.Identity, FieldQoS.AutomaticReadout));
 
-					Fields.AddRange(await this.weatherClient.GetData());
+						Fields.AddRange(await this.weatherClient.GetData());
+					}
 
 					e.ReportFields(true, Fields);
 				}
