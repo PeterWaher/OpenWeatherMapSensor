@@ -889,6 +889,9 @@ namespace SensorXmpp
 
 		private void ConfigEnabled(bool Enabled)
 		{
+			this.sampleTimer?.Dispose();
+			this.sampleTimer = null;
+
 			if (Enabled)
 			{
 				DateTime Now2 = DateTime.Now;
@@ -897,11 +900,7 @@ namespace SensorXmpp
 				Log.Notice("Enabling Sampling.");
 			}
 			else
-			{
-				this.sampleTimer?.Dispose();
-				this.sampleTimer = null;
 				Log.Notice("Disabling Sampling.");
-			}
 		}
 
 		private async void SampleTimerElapsed(object P)
