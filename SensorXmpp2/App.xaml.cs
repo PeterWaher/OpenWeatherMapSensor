@@ -16,6 +16,7 @@ using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
 
 using Waher.Content;
+using Waher.Content.Markdown;
 using Waher.Content.QR;
 using Waher.Content.QR.Encoding;
 using Waher.Content.Xml;
@@ -30,13 +31,24 @@ using Waher.Networking.XMPP.ServiceDiscovery;
 using Waher.Networking.XMPP.Sensor;
 using Waher.Persistence;
 using Waher.Persistence.Files;
+using Waher.Persistence.Filters;
 using Waher.Persistence.Serialization;
 using Waher.Runtime.Inventory;
 using Waher.Runtime.Settings;
+using Waher.Script;
+using Waher.Script.Abstraction.Elements;
+using Waher.Script.Graphs;
+using Waher.Script.Objects;
+using Waher.Script.Operators.Arithmetics;
+using Waher.Script.Order;
+using Waher.Script.Persistence.SQL;
+using Waher.Script.Units;
 using Waher.Security;
 using Waher.Things;
 using Waher.Things.ControlParameters;
 using Waher.Things.SensorData;
+
+using SensorXmpp.Data;
 
 namespace SensorXmpp
 {
@@ -45,6 +57,9 @@ namespace SensorXmpp
 	/// </summary>
 	sealed partial class App : Application
 	{
+		private const int recordsInMemory = 250;    // Number of records to keep in persisted memory, for each time scale.
+		private const int fieldBatchSize = 50;      // Number of fields to report in each message.
+
 		private FilesProvider db = null;
 		private Timer sampleTimer = null;
 		private XmppClient xmppClient = null;
@@ -226,11 +241,11 @@ namespace SensorXmpp
 					typeof(RuntimeSettings).GetTypeInfo().Assembly,
 					typeof(IContentEncoder).GetTypeInfo().Assembly,
 					typeof(XmppClient).GetTypeInfo().Assembly,
-					typeof(Waher.Content.Markdown.MarkdownDocument).GetTypeInfo().Assembly,
+					typeof(MarkdownDocument).GetTypeInfo().Assembly,
 					typeof(XML).GetTypeInfo().Assembly,
-					typeof(Waher.Script.Expression).GetTypeInfo().Assembly,
-					typeof(Waher.Script.Graphs.Graph).GetTypeInfo().Assembly,
-					typeof(Waher.Script.Persistence.SQL.Select).GetTypeInfo().Assembly,
+					typeof(Expression).GetTypeInfo().Assembly,
+					typeof(Graph).GetTypeInfo().Assembly,
+					typeof(Select).GetTypeInfo().Assembly,
 					typeof(App).GetTypeInfo().Assembly);
 
 				#endregion
@@ -242,7 +257,7 @@ namespace SensorXmpp
 				Database.Register(db);
 				await db.RepairIfInproperShutdown(null);
 				await db.Start();
-
+				
 				#endregion
 
 				#region Device ID
@@ -354,10 +369,7 @@ namespace SensorXmpp
 									case XmppState.Error:
 									case XmppState.Offline:
 										if (ConnectionEstablished)
-										{
-											ConnectionEstablished = false;
 											this.xmppClient?.Reconnect();
-										}
 										break;
 								}
 
@@ -835,40 +847,114 @@ namespace SensorXmpp
 			this.sensorServer = null;
 
 			this.sensorServer = new SensorServer(this.xmppClient, this.provisioningClient, true);
-			this.sensorServer.OnExecuteReadoutRequest += async (sender, e) =>
-			{
-				try
-				{
-					Log.Informational("Performing readout.", this.xmppClient.BareJID, e.Actor);
-
-					List<Field> Fields = new List<Field>();
-					DateTime Now = DateTime.Now;
-
-					if (this.sampleTimer is null)
-						Log.Notice("Sensor is disabled.");
-					else
-					{
-						if (e.IsIncluded(FieldType.Identity))
-						{
-							Fields.Add(new StringField(ThingReference.Empty, Now, "Device ID", this.deviceId, 
-								FieldType.Identity, FieldQoS.AutomaticReadout));
-						}
-
-						Fields.AddRange(await this.weatherClient.GetData());
-					}
-
-					e.ReportFields(true, Fields);
-				}
-				catch (Exception ex)
-				{
-					Log.Critical(ex);
-				}
-			};
+			this.sensorServer.OnExecuteReadoutRequest += this.ReadSensor;
 
 			this.pepClient?.Dispose();
 			this.pepClient = null;
 
 			this.pepClient = new PepClient(this.xmppClient);
+		}
+
+		private async Task ReadSensor(object Sender, SensorDataServerRequest e)
+		{
+			try
+			{
+				Log.Informational("Performing readout.", this.xmppClient.BareJID, e.Actor);
+
+				List<Field> Fields = new List<Field>();
+				DateTime Now = DateTime.Now;
+				bool ReadHistory = e.IsIncluded(FieldType.Historical);
+
+				if (this.sampleTimer is null)
+					Log.Notice("Sensor is disabled.");
+				else
+				{
+					if (e.IsIncluded(FieldType.Identity))
+					{
+						Fields.Add(new StringField(ThingReference.Empty, Now, "Device ID", this.deviceId,
+							FieldType.Identity, FieldQoS.AutomaticReadout));
+					}
+
+					Fields.AddRange(await this.weatherClient.GetData());
+				}
+
+				e.ReportFields(!ReadHistory, Fields);
+
+				if (ReadHistory)
+				{
+					try
+					{
+						DateTime Last = await this.ReportHistory<PerMinute>(e, e.From, e.To);
+						if (Last >= e.From && Last != DateTime.MinValue)
+						{
+							Last = await this.ReportHistory<PerQuarter>(e, e.From, Last);
+							if (Last >= e.From && Last != DateTime.MinValue)
+							{
+								Last = await this.ReportHistory<PerHour>(e, e.From, Last);
+								if (Last >= e.From && Last != DateTime.MinValue)
+								{
+									Last = await this.ReportHistory<PerDay>(e, e.From, Last);
+									if (Last >= e.From && Last != DateTime.MinValue)
+									{
+										Last = await this.ReportHistory<PerWeek>(e, e.From, Last);
+										if (Last >= e.From && Last != DateTime.MinValue)
+											await this.ReportHistory<PerMonth>(e, e.From, Last);
+									}
+								}
+							}
+						}
+					}
+					finally
+					{
+						e.ReportFields(true);
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				e.ReportErrors(true, new ThingError(ThingReference.Empty, ex.Message));
+			}
+		}
+
+		private async Task<DateTime> ReportHistory<T>(SensorDataServerRequest e, DateTime From, DateTime To)
+			where T : HistoricRecord
+		{
+			IEnumerable<T> Records = await Database.Find<T>(new FilterAnd(
+				new FilterFieldGreaterOrEqualTo("Timestamp", From),
+				new FilterFieldLesserOrEqualTo("Timestamp", To)), "-Timestamp");
+			List<Field> ToReport = new List<Field>();
+			DateTime Last = DateTime.MinValue;
+
+			foreach (T Rec in Records)
+			{
+				ToReport.Add(new QuantityField(ThingReference.Empty, Rec.Timestamp, Rec.FieldName, Rec.Magnitude, Rec.NrDecimals, Rec.Unit,
+					FieldType.Historical, Rec.QoS));
+
+				if (Rec is HistoricRecordWithPeaks WithPeaks)
+				{
+					ToReport.Add(new QuantityField(ThingReference.Empty, Rec.Timestamp, Rec.FieldName + ", Min", WithPeaks.MinMagnitude,
+						WithPeaks.MinNrDecimals, WithPeaks.MinUnit, FieldType.Historical | FieldType.Peak, Rec.QoS));
+
+					ToReport.Add(new QuantityField(ThingReference.Empty, Rec.Timestamp, Rec.FieldName + ", Max", WithPeaks.MaxMagnitude,
+						WithPeaks.MaxNrDecimals, WithPeaks.MaxUnit, FieldType.Historical | FieldType.Peak, Rec.QoS));
+				}
+
+				if (ToReport.Count >= fieldBatchSize)
+				{
+					e.ReportFields(false, ToReport.ToArray());
+					ToReport.Clear();
+				}
+
+				Last = Rec.Timestamp;
+			}
+
+			if (ToReport.Count > 0)
+			{
+				e.ReportFields(false, ToReport.ToArray());
+				ToReport.Clear();
+			}
+
+			return Last;
 		}
 
 		private async Task SetupSampleTimer()
@@ -909,7 +995,7 @@ namespace SensorXmpp
 			{
 				if (this.xmppClient.State == XmppState.Error ||
 					this.xmppClient.State == XmppState.Offline ||
-					(this.xmppClient.State != XmppState.Connected && 
+					(this.xmppClient.State != XmppState.Connected &&
 					(DateTime.Now - this.connectionStateChanged).TotalSeconds > 10))
 				{
 					this.xmppClient.Reconnect();
@@ -917,7 +1003,16 @@ namespace SensorXmpp
 
 				Field[] Fields = await this.weatherClient.GetData();
 
-				this.PublishMomentaryValues(Fields);
+				try
+				{
+					this.PublishMomentaryValues(Fields);
+				}
+				catch (Exception ex)
+				{
+					Log.Critical(ex);
+				}
+
+				await this.SaveHistory(Fields);
 			}
 			catch (Exception ex)
 			{
@@ -968,6 +1063,326 @@ namespace SensorXmpp
 			this.sensorServer?.NewMomentaryValues(Fields);
 
 			this.lastPublished = Now;
+		}
+
+		#endregion
+
+		#region Historical Data
+
+		private async Task SaveHistory(Field[] Fields)
+		{
+			DateTime TP = DateTime.Now;
+			TP = TP.AddMilliseconds(-TP.Millisecond).AddSeconds(-TP.Second);
+
+			// Minute records
+
+			await Database.StartBulk();
+			try
+			{
+				foreach (Field F in Fields)
+				{
+					if (F.Type == FieldType.Momentary && F is QuantityField Q)
+					{
+						PerMinute Rec = new PerMinute()
+						{
+							FieldName = F.Name,
+							QoS = F.QoS,
+							Timestamp = F.Timestamp,
+							Magnitude = Q.Value,
+							NrDecimals = Q.NrDecimals,
+							Unit = Q.Unit
+						};
+
+						await Database.Insert(Rec);
+					}
+				}
+
+				await Database.FindDelete<PerMinute>(new FilterFieldLesserThan("Timestamp", TP.AddMinutes(-recordsInMemory)));
+			}
+			finally
+			{
+				await Database.EndBulk();
+			}
+
+			if (TP.Minute % 15 != 0)
+				return;
+
+			// Quarter records
+
+			DateTime From = TP.AddMinutes(-15);
+			IEnumerable<HistoricRecordWithPeaks> ToAdd;
+
+			await Database.StartBulk();
+			try
+			{
+				ToAdd = await this.CalcHistory<PerMinute, PerQuarter>(From, TP);
+				await Database.Insert(ToAdd);
+				await Database.FindDelete<PerQuarter>(new FilterFieldLesserThan("Timestamp", TP.AddMinutes(-recordsInMemory * 15)));
+			}
+			finally
+			{
+				await Database.EndBulk();
+			}
+
+			if (TP.Minute != 0)
+				return;
+
+			// Hour records
+
+			From = TP.AddHours(-1);
+
+			await Database.StartBulk();
+			try
+			{
+				ToAdd = await this.CalcHistory<PerQuarter, PerHour>(From, TP);
+				await Database.Insert(ToAdd);
+				await Database.FindDelete<PerHour>(new FilterFieldLesserThan("Timestamp", TP.AddHours(-recordsInMemory)));
+			}
+			finally
+			{
+				await Database.EndBulk();
+			}
+
+			if (TP.Hour != 0)
+				return;
+
+			// Day records
+
+			From = TP.AddDays(-1);
+
+			await Database.StartBulk();
+			try
+			{
+				ToAdd = await this.CalcHistory<PerHour, PerDay>(From, TP);
+				await Database.Insert(ToAdd);
+				await Database.FindDelete<PerDay>(new FilterFieldLesserThan("Timestamp", TP.AddDays(-recordsInMemory)));
+			}
+			finally
+			{
+				await Database.EndBulk();
+			}
+
+			if (TP.DayOfWeek == DayOfWeek.Monday)
+			{
+				// Week records
+
+				From = TP.AddDays(-7);
+
+				await Database.StartBulk();
+				try
+				{
+					ToAdd = await this.CalcHistory<PerDay, PerWeek>(From, TP);
+					await Database.Insert(ToAdd);
+					await Database.FindDelete<PerWeek>(new FilterFieldLesserThan("Timestamp", TP.AddDays(-recordsInMemory * 7)));
+				}
+				finally
+				{
+					await Database.EndBulk();
+				}
+			}
+
+			if (TP.Day != 1)
+				return;
+
+			// Month records
+
+			From = TP.AddMonths(-1);
+
+			await Database.StartBulk();
+			try
+			{
+				ToAdd = await this.CalcHistory<PerDay, PerMonth>(From, TP);
+				await Database.Insert(ToAdd);
+				await Database.FindDelete<PerMonth>(new FilterFieldLesserThan("Timestamp", TP.AddMonths(-recordsInMemory)));
+			}
+			finally
+			{
+				await Database.EndBulk();
+			}
+		}
+
+		private async Task<IEnumerable<HistoricRecordWithPeaks>> CalcHistory<FromType, ToType>(DateTime FromInclusive, DateTime ToExclusive)
+			where FromType : HistoricRecord
+			where ToType : HistoricRecordWithPeaks, new()
+		{
+			IEnumerable<FromType> Records = await Database.Find<FromType>(new FilterAnd(
+				new FilterFieldGreaterOrEqualTo("Timestamp", FromInclusive),
+				new FilterFieldLesserThan("Timestamp", ToExclusive)));
+
+			Dictionary<string, ToType> ByName = new Dictionary<string, ToType>();
+
+			foreach (FromType Rec in Records)
+			{
+				if (ByName.TryGetValue(Rec.FieldName, out ToType Stat))
+				{
+					if (Rec is HistoricRecordWithPeaks WithPeaks)
+					{
+						if (Compare(Stat.MinMagnitude, Stat.MinUnit, WithPeaks.MinMagnitude, WithPeaks.MinUnit) > 0)
+						{
+							Stat.MinMagnitude = WithPeaks.MinMagnitude;
+							Stat.MinNrDecimals = WithPeaks.MinNrDecimals;
+							Stat.MinUnit = WithPeaks.MinUnit;
+							Stat.MinTimestamp = WithPeaks.MinTimestamp;
+						}
+
+						if (Compare(Stat.MaxMagnitude, Stat.MaxUnit, WithPeaks.MaxMagnitude, WithPeaks.MaxUnit) < 0)
+						{
+							Stat.MaxMagnitude = WithPeaks.MaxMagnitude;
+							Stat.MaxNrDecimals = WithPeaks.MaxNrDecimals;
+							Stat.MaxUnit = WithPeaks.MaxUnit;
+							Stat.MaxTimestamp = WithPeaks.MaxTimestamp;
+						}
+
+						Stat.NrSamples += WithPeaks.NrSamples;
+					}
+					else
+					{
+						if (Compare(Stat.MinMagnitude, Stat.MinUnit, Rec.Magnitude, Rec.Unit) > 0)
+						{
+							Stat.MinMagnitude = Rec.Magnitude;
+							Stat.MinNrDecimals = Rec.NrDecimals;
+							Stat.MinUnit = Rec.Unit;
+							Stat.MinTimestamp = Rec.Timestamp;
+						}
+
+						if (Compare(Stat.MaxMagnitude, Stat.MaxUnit, Rec.Magnitude, Rec.Unit) < 0)
+						{
+							Stat.MaxMagnitude = Rec.Magnitude;
+							Stat.MaxNrDecimals = Rec.NrDecimals;
+							Stat.MaxUnit = Rec.Unit;
+							Stat.MaxTimestamp = Rec.Timestamp;
+						}
+
+						Stat.NrSamples++;
+					}
+
+					if (Stat.Unit == Rec.Unit)
+					{
+						Stat.Magnitude += Rec.Magnitude;
+						Stat.NrDecimals = Math.Min(Stat.NrDecimals, Rec.NrDecimals);
+						Stat.NrRecords++;
+					}
+					else
+					{
+						double? d = Add(Stat.Magnitude, Stat.Unit, Rec.Magnitude, Rec.Unit);
+						if (d.HasValue)
+						{
+							Stat.Magnitude = d.Value;
+							Stat.NrDecimals = Math.Min(Stat.NrDecimals, Rec.NrDecimals);
+							Stat.NrRecords++;
+						}
+					}
+
+					Stat.QoS = this.CalcMin(Stat.QoS, Rec.QoS);
+				}
+				else
+				{
+					if (Rec is HistoricRecordWithPeaks WithPeaks)
+					{
+						Stat = new ToType()
+						{
+							FieldName = Rec.FieldName,
+							MinMagnitude = WithPeaks.MinMagnitude,
+							MinNrDecimals = WithPeaks.MinNrDecimals,
+							MinUnit = WithPeaks.MinUnit,
+							MinTimestamp = WithPeaks.MinTimestamp,
+							MaxMagnitude = WithPeaks.MaxMagnitude,
+							MaxNrDecimals = WithPeaks.MaxNrDecimals,
+							MaxUnit = WithPeaks.MaxUnit,
+							MaxTimestamp = WithPeaks.MaxTimestamp,
+							QoS = Rec.QoS,
+							Timestamp = FromInclusive.Add(TimeSpan.FromDays(ToExclusive.Subtract(FromInclusive).TotalDays * 0.5)),
+							Magnitude = Rec.Magnitude,
+							NrDecimals = Rec.NrDecimals,
+							Unit = Rec.Unit,
+							NrRecords = 1,
+							NrSamples = WithPeaks.NrSamples
+						};
+					}
+					else
+					{
+						Stat = new ToType()
+						{
+							FieldName = Rec.FieldName,
+							MinMagnitude = Rec.Magnitude,
+							MinNrDecimals = Rec.NrDecimals,
+							MinUnit = Rec.Unit,
+							MinTimestamp = Rec.Timestamp,
+							MaxMagnitude = Rec.Magnitude,
+							MaxNrDecimals = Rec.NrDecimals,
+							MaxUnit = Rec.Unit,
+							MaxTimestamp = Rec.Timestamp,
+							QoS = Rec.QoS,
+							Timestamp = FromInclusive.Add(TimeSpan.FromDays(ToExclusive.Subtract(FromInclusive).TotalDays * 0.5)),
+							Magnitude = Rec.Magnitude,
+							NrDecimals = Rec.NrDecimals,
+							Unit = Rec.Unit,
+							NrRecords = 1,
+							NrSamples = 1
+						};
+					}
+
+					ByName[Rec.FieldName] = Stat;
+				}
+
+			}
+
+			foreach (ToType Rec in ByName.Values)
+			{
+				if (Rec.NrRecords > 1)
+					Rec.Magnitude /= Rec.NrRecords;
+			}
+
+			return ByName.Values;
+		}
+
+		private static int Compare(double Magnitude1, string Unit1, double Magnitude2, string Unit2)
+		{
+			if (Unit1 == Unit2)
+				return Magnitude1.CompareTo(Magnitude2);
+
+			if (!Unit.TryParse(Unit1, out Unit Parsed1))
+				return 1;
+
+			if (!Unit.TryParse(Unit2, out Unit Parsed2))
+				return -1;
+
+			if (!Unit.TryConvert(Magnitude2, Parsed2, Parsed1, out double Magnitude3))
+				return -1;
+
+			return Magnitude1.CompareTo(Magnitude3);
+		}
+
+		private static double? Add(double Magnitude1, string Unit1, double Magnitude2, string Unit2)
+		{
+			if (Unit1 == Unit2)
+				return Magnitude1 + Magnitude2;
+
+			if (!Unit.TryParse(Unit1, out Unit Parsed1))
+				return null;
+
+			if (!Unit.TryParse(Unit2, out Unit Parsed2))
+				return null;
+
+			if (!Unit.TryConvert(Magnitude2, Parsed2, Parsed1, out double Magnitude3))
+				return null;
+
+			return Magnitude1 + Magnitude3;
+		}
+
+		private const int qosComparableFlags = 0b10111000111111;
+		private const int qosTransferrableFlags = 0b01000111000000;
+
+		private FieldQoS CalcMin(FieldQoS QoS1, FieldQoS QoS2)
+		{
+			int q1 = (int)QoS1;
+			int q2 = (int)QoS2;
+			int Result = Math.Min(q1 & qosComparableFlags, q2 & qosComparableFlags);
+
+			Result |= q1 & qosTransferrableFlags;
+			Result |= q2 & qosTransferrableFlags;
+
+			return (FieldQoS)Result;
 		}
 
 		#endregion
