@@ -36,11 +36,7 @@ using Waher.Persistence.Serialization;
 using Waher.Runtime.Inventory;
 using Waher.Runtime.Settings;
 using Waher.Script;
-using Waher.Script.Abstraction.Elements;
 using Waher.Script.Graphs;
-using Waher.Script.Objects;
-using Waher.Script.Operators.Arithmetics;
-using Waher.Script.Order;
 using Waher.Script.Persistence.SQL;
 using Waher.Script.Units;
 using Waher.Security;
@@ -153,30 +149,33 @@ namespace SensorXmpp
 		{
 			var deferral = e.SuspendingOperation.GetDeferral();
 
-			this.sampleTimer?.Dispose();
-			this.sampleTimer = null;
-
-			this.pepClient?.Dispose();
-			this.pepClient = null;
-
-			this.chatServer?.Dispose();
-			this.chatServer = null;
-
-			this.bobClient?.Dispose();
-			this.bobClient = null;
-
-			this.sensorServer?.Dispose();
-			this.sensorServer = null;
-
-			this.xmppClient?.Dispose();
-			this.xmppClient = null;
-
+			SafeDispose(ref this.sampleTimer);
+			SafeDispose(ref this.pepClient);
+			SafeDispose(ref this.chatServer);
+			SafeDispose(ref this.bobClient);
+			SafeDispose(ref this.sensorServer);
+			SafeDispose(ref this.xmppClient);
+			
 			db?.Stop()?.Wait();
 			db?.Flush()?.Wait();
 
 			Log.Terminate();
 
 			deferral.Complete();
+		}
+
+		private static void SafeDispose<T>(ref T Object)
+			where T : IDisposable
+		{
+			try
+			{
+				Object?.Dispose();
+				Object = default;
+			}
+			catch (Exception ex)
+			{
+				Log.Critical(ex);
+			}
 		}
 
 		#endregion
@@ -336,8 +335,7 @@ namespace SensorXmpp
 					{
 						try
 						{
-							this.xmppClient?.Dispose();
-							this.xmppClient = null;
+							SafeDispose(ref this.xmppClient);
 
 							if (string.IsNullOrEmpty(PasswordHashMethod))
 								this.xmppClient = new XmppClient(Host, Port, UserName, PasswordHash, "en", typeof(App).GetTypeInfo().Assembly);
@@ -852,14 +850,12 @@ namespace SensorXmpp
 
 		private void SetupSensorServer()
 		{
-			this.sensorServer?.Dispose();
-			this.sensorServer = null;
-
+			SafeDispose(ref this.sensorServer);
+			
 			this.sensorServer = new SensorServer(this.xmppClient, this.provisioningClient, true);
 			this.sensorServer.OnExecuteReadoutRequest += this.ReadSensor;
 
-			this.pepClient?.Dispose();
-			this.pepClient = null;
+			SafeDispose(ref this.pepClient);
 
 			this.pepClient = new PepClient(this.xmppClient);
 		}
@@ -984,8 +980,7 @@ namespace SensorXmpp
 
 		private void ConfigEnabled(bool Enabled)
 		{
-			this.sampleTimer?.Dispose();
-			this.sampleTimer = null;
+			SafeDispose(ref this.sampleTimer);
 
 			if (Enabled)
 			{
@@ -1400,8 +1395,7 @@ namespace SensorXmpp
 
 		private void SetupControlServer()
 		{
-			this.controlServer?.Dispose();
-			this.controlServer = null;
+			SafeDispose(ref this.controlServer);
 
 			this.controlServer = new ControlServer(this.xmppClient, this.provisioningClient,
 				new BooleanControlParameter("Enabled", "Operation", "Enabled", "If sensor is enabled.",
@@ -1415,8 +1409,7 @@ namespace SensorXmpp
 
 		private void SetupChatServer()
 		{
-			this.chatServer?.Dispose();
-			this.chatServer = null;
+			SafeDispose(ref this.chatServer);
 
 			if (this.bobClient is null)
 				this.bobClient = new BobClient(this.xmppClient, Path.Combine(Path.GetTempPath(), "BitsOfBinary"));
