@@ -537,6 +537,7 @@ namespace SensorXmpp
 							Log.Notice("Owner disowned device.", string.Empty, this.ownerJid);
 
 							await RuntimeSettings.SetAsync("ThingRegistry.Owner", this.ownerJid = string.Empty);
+							await Task.Delay(5000);
 							await this.RegisterDevice();
 						}
 						catch (Exception ex)
