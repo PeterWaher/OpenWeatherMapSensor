@@ -74,7 +74,6 @@ namespace SensorXmpp
 		private BobClient bobClient = null;
 		private ChatServer chatServer = null;
 		private DateTime lastPublished = DateTime.MinValue;
-		private DateTime connectionStateChanged = DateTime.MinValue;
 
 		/// <summary>
 		/// Initializes the singleton application object.  This is the first line of authored code
@@ -325,7 +324,6 @@ namespace SensorXmpp
 				string UserName = await RuntimeSettings.GetAsync("XmppUserName", string.Empty);
 				string PasswordHash = await RuntimeSettings.GetAsync("XmppPasswordHash", string.Empty);
 				string PasswordHashMethod = await RuntimeSettings.GetAsync("XmppPasswordHashMethod", string.Empty);
-				bool ConnectionEstablished = false;
 
 				Updated = false;
 
@@ -353,30 +351,12 @@ namespace SensorXmpp
 
 							this.xmppClient.OnStateChanged += (sender, State) =>
 							{
-								this.connectionStateChanged = DateTime.Now;
-
 								Log.Informational("Changing state: " + State.ToString());
 
 								switch (State)
 								{
 									case XmppState.Connected:
 										Log.Informational("Connected as " + this.xmppClient.FullJID);
-										ConnectionEstablished = true;
-										break;
-
-									case XmppState.Error:
-									case XmppState.Offline:
-										if (ConnectionEstablished)
-										{
-											try
-											{
-												this.xmppClient?.Reconnect();
-											}
-											catch (Exception ex)
-											{
-												Log.Critical(ex);
-											}
-										}
 										break;
 								}
 
@@ -998,14 +978,6 @@ namespace SensorXmpp
 		{
 			try
 			{
-				if (this.xmppClient.State == XmppState.Error ||
-					this.xmppClient.State == XmppState.Offline ||
-					(this.xmppClient.State != XmppState.Connected &&
-					(DateTime.Now - this.connectionStateChanged).TotalSeconds > 10))
-				{
-					this.xmppClient.Reconnect();
-				}
-
 				Field[] Fields = await this.weatherClient.GetData();
 
 				try
