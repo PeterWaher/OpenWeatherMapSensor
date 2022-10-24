@@ -59,7 +59,7 @@ namespace SensorXmpp
 		private FilesProvider db = null;
 		private Timer sampleTimer = null;
 		private XmppClient xmppClient = null;
-		private PepClient pepClient = null;
+		//private PepClient pepClient = null;
 
 		private readonly QrEncoder qrEncoder = new QrEncoder();
 		private string deviceId;
@@ -149,7 +149,7 @@ namespace SensorXmpp
 			var deferral = e.SuspendingOperation.GetDeferral();
 
 			SafeDispose(ref this.sampleTimer);
-			SafeDispose(ref this.pepClient);
+			//SafeDispose(ref this.pepClient);
 			SafeDispose(ref this.chatServer);
 			SafeDispose(ref this.bobClient);
 			SafeDispose(ref this.sensorServer);
@@ -836,9 +836,9 @@ namespace SensorXmpp
 			this.sensorServer = new SensorServer(this.xmppClient, this.provisioningClient, true);
 			this.sensorServer.OnExecuteReadoutRequest += this.ReadSensor;
 
-			SafeDispose(ref this.pepClient);
+			//SafeDispose(ref this.pepClient);
 
-			this.pepClient = new PepClient(this.xmppClient);
+			//this.pepClient = new PepClient(this.xmppClient);
 		}
 
 		private async Task ReadSensor(object Sender, SensorDataServerRequest e)
@@ -1036,7 +1036,7 @@ namespace SensorXmpp
 
 			DateTime Now = DateTime.Now;
 
-			this.pepClient?.Publish(new SensorData(Fields), null, null);
+			//this.pepClient?.Publish(new SensorData(Fields), null, null);
 			this.sensorServer?.NewMomentaryValues(Fields);
 
 			this.lastPublished = Now;
