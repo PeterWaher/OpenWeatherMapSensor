@@ -208,7 +208,7 @@
       <Version>2.6.4</Version>
     </PackageReference>
     <PackageReference Include="Waher.Content.Markdown">
-      <Version>2.6.1</Version>
+      <Version>2.7.2</Version>
     </PackageReference>
     <PackageReference Include="Waher.Content.QR">
       <Version>2.1.0</Version>
@@ -238,7 +238,7 @@
       <Version>2.1.2</Version>
     </PackageReference>
     <PackageReference Include="Waher.Persistence.FilesLW">
-      <Version>1.11.0</Version>
+      <Version>1.11.2</Version>
     </PackageReference>
     <PackageReference Include="Waher.Runtime.Inventory">
       <Version>1.1.5</Version>
@@ -247,7 +247,7 @@
       <Version>1.0.10</Version>
     </PackageReference>
     <PackageReference Include="Waher.Script">
-      <Version>2.5.2</Version>
+      <Version>2.5.3</Version>
     </PackageReference>
     <PackageReference Include="Waher.Script.Graphs">
       <Version>2.1.1</Version>
