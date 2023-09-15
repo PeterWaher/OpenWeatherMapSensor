@@ -978,6 +978,12 @@ namespace SensorXmpp
 		{
 			try
 			{
+				if (DateTime.Now.Second == 0 && !(this.xmppClient is null) &&
+					(this.xmppClient.State == XmppState.Error || this.xmppClient.State == XmppState.Offline))
+				{
+					this.xmppClient.Reconnect();
+				}
+
 				Field[] Fields = await this.weatherClient.GetData();
 
 				try
