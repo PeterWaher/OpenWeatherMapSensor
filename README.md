@@ -15,3 +15,6 @@ Sanbox IoT Brokers that can be used for testing and educational purposes are ava
 * [waher.se](https://waher.se/Broker.md)
 * [cybercity.online](https://cybercity.online)
 * [lab.tagroot.io](https://lab.tagroot.io)
+
+For more information about to install and use this example application, see:
+<https://lab.tagroot.io/Community/Post/Creating_a_harmonized_and_provisioned_sensor_for_test>
