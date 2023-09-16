@@ -25,7 +25,6 @@ using Waher.Networking.XMPP;
 using Waher.Networking.XMPP.BitsOfBinary;
 using Waher.Networking.XMPP.Chat;
 using Waher.Networking.XMPP.Control;
-using Waher.Networking.XMPP.PEP;
 using Waher.Networking.XMPP.Provisioning;
 using Waher.Networking.XMPP.ServiceDiscovery;
 using Waher.Networking.XMPP.Sensor;
@@ -45,6 +44,7 @@ using Waher.Things.ControlParameters;
 using Waher.Things.SensorData;
 
 using SensorXmpp.Data;
+using OpenWeatherMapApi;
 
 namespace SensorXmpp
 {
@@ -66,7 +66,7 @@ namespace SensorXmpp
 		private string thingRegistryJid = string.Empty;
 		private string provisioningJid = string.Empty;
 		private string ownerJid = string.Empty;
-		private OpenWeatherMapApi weatherClient = null;
+		private OpenWeatherMapClient weatherClient = null;
 		private SensorServer sensorServer = null;
 		private ControlServer controlServer = null;
 		private ThingRegistryClient registryClient = null;
@@ -82,7 +82,7 @@ namespace SensorXmpp
 		public App()
 		{
 			this.InitializeComponent();
-			this.Suspending += OnSuspending;
+			this.Suspending += this.OnSuspending;
 		}
 
 		#region App UWP Life-Cycle
@@ -101,7 +101,7 @@ namespace SensorXmpp
 				// Create a Frame to act as the navigation context and navigate to the first page
 				rootFrame = new Frame();
 
-				rootFrame.NavigationFailed += OnNavigationFailed;
+				rootFrame.NavigationFailed += this.OnNavigationFailed;
 
 				if (e.PreviousExecutionState == ApplicationExecutionState.Terminated)
 				{
@@ -155,8 +155,8 @@ namespace SensorXmpp
 			SafeDispose(ref this.sensorServer);
 			SafeDispose(ref this.xmppClient);
 			
-			db?.Stop()?.Wait();
-			db?.Flush()?.Wait();
+			this.db?.Stop()?.Wait();
+			this.db?.Flush()?.Wait();
 
 			Log.Terminate();
 
@@ -250,11 +250,11 @@ namespace SensorXmpp
 
 				#region Setting up database
 
-				db = await FilesProvider.CreateAsync(ApplicationData.Current.LocalFolder.Path +
+				this.db = await FilesProvider.CreateAsync(ApplicationData.Current.LocalFolder.Path +
 					Path.DirectorySeparatorChar + "Data", "Default", 8192, 1000, 8192, Encoding.UTF8, 10000);
-				Database.Register(db);
-				await db.RepairIfInproperShutdown(null);
-				await db.Start();
+				Database.Register(this.db);
+				await this.db.RepairIfInproperShutdown(null);
+				await this.db.Start();
 				
 				#endregion
 
@@ -284,7 +284,7 @@ namespace SensorXmpp
 					{
 						try
 						{
-							this.weatherClient = new OpenWeatherMapApi(ApiKey, Location, Country);
+							this.weatherClient = new OpenWeatherMapClient(ApiKey, Location, Country);
 							await this.weatherClient.GetData(); // Test parameters
 
 							if (Updated)
@@ -773,8 +773,8 @@ namespace SensorXmpp
 		private void GenerateIoTDiscoUri(MetaDataTag[] MetaInfo)
 		{
 			string FilePath = ApplicationData.Current.LocalFolder.Path + Path.DirectorySeparatorChar + "Sensor.iotdisco";
-			string DiscoUri = registryClient.EncodeAsIoTDiscoURI(MetaInfo);
-			QrMatrix M = qrEncoder.GenerateMatrix(CorrectionLevel.L, DiscoUri);
+			string DiscoUri = this.registryClient.EncodeAsIoTDiscoURI(MetaInfo);
+			QrMatrix M = this.qrEncoder.GenerateMatrix(CorrectionLevel.L, DiscoUri);
 			byte[] Pixels = M.ToRGBA(300, 300);
 
 			MainPage.Instance.AddLogMessage(Pixels, 300, 300);

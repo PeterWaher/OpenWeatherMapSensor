@@ -5,15 +5,15 @@ using Waher.Content;
 using Waher.Things;
 using Waher.Things.SensorData;
 
-namespace SensorXmpp
+namespace OpenWeatherMapApi
 {
-	public class OpenWeatherMapApi
+	public class OpenWeatherMapClient
 	{
 		private readonly string apiKey;
 		private readonly string location;
 		private readonly string country;
 
-		public OpenWeatherMapApi(string ApiKey, string Location, string Country)
+		public OpenWeatherMapClient(string ApiKey, string Location, string Country)
 		{
 			this.apiKey = ApiKey;
 			this.location = Location;
