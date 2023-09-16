@@ -12,6 +12,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenWeatherMapApi", "OpenWeatherMapApi\OpenWeatherMapApi.csproj", "{A2481A41-559E-4AC4-9DDF-983838CCB148}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SensorConsole", "SensorConsole\SensorConsole.csproj", "{80002FC9-857A-444E-8740-DF118D54FE7A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -64,6 +66,22 @@ Global
 		{A2481A41-559E-4AC4-9DDF-983838CCB148}.Release|x64.Build.0 = Release|Any CPU
 		{A2481A41-559E-4AC4-9DDF-983838CCB148}.Release|x86.ActiveCfg = Release|Any CPU
 		{A2481A41-559E-4AC4-9DDF-983838CCB148}.Release|x86.Build.0 = Release|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Debug|ARM.Build.0 = Debug|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Debug|x64.Build.0 = Debug|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Debug|x86.Build.0 = Debug|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Release|ARM.ActiveCfg = Release|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Release|ARM.Build.0 = Release|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Release|x64.ActiveCfg = Release|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Release|x64.Build.0 = Release|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Release|x86.ActiveCfg = Release|Any CPU
+		{80002FC9-857A-444E-8740-DF118D54FE7A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Assets\Icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Waher.Content.QR" Version="2.1.0" />
+    <PackageReference Include="Waher.Events" Version="1.1.2" />
+    <PackageReference Include="Waher.Events.Console" Version="1.1.1" />
+    <PackageReference Include="Waher.Events.XMPP" Version="1.2.3" />
+    <PackageReference Include="Waher.Networking" Version="2.2.3" />
+    <PackageReference Include="Waher.Networking.XMPP" Version="2.1.2" />
+    <PackageReference Include="Waher.Networking.XMPP.Chat" Version="2.0.6" />
+    <PackageReference Include="Waher.Networking.XMPP.Control" Version="2.0.3" />
+    <PackageReference Include="Waher.Networking.XMPP.Provisioning" Version="2.0.6" />
+    <PackageReference Include="Waher.Networking.XMPP.Sensor" Version="2.1.2" />
+    <PackageReference Include="Waher.Persistence" Version="1.10.0" />
+    <PackageReference Include="Waher.Persistence.Files" Version="1.11.2" />
+    <PackageReference Include="Waher.Runtime.Settings" Version="1.0.10" />
+    <PackageReference Include="Waher.Script" Version="2.5.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenWeatherMapApi\OpenWeatherMapApi.csproj" />
+  </ItemGroup>
+
+</Project>
