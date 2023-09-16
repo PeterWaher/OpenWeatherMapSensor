@@ -31,6 +31,7 @@ using Waher.Things;
 using SensorConsole.Data;
 using Waher.Persistence.Filters;
 using Waher.Networking.XMPP.ServiceDiscovery;
+using System.Web;
 
 namespace SensorConsole // Note: actual namespace depends on the project name.
 {
@@ -88,9 +89,11 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 
 				db = await FilesProvider.CreateAsync(Path.Combine(Environment.CurrentDirectory, "Data"),
 					"Default", 8192, 1000, 8192, Encoding.UTF8, 10000);
-				Database.Register(db);
 				await db.RepairIfInproperShutdown(null);
-				await db.Start();
+				
+				Database.Register(db);
+
+				await Types.StartAllModules(60000);
 
 				#region Device ID
 
@@ -363,7 +366,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 				await SetupSampleTimer();
 
 				while (true)
-					Thread.Sleep(1000);
+					await Task.Delay(1000);
 			}
 			catch (Exception ex)
 			{
@@ -379,10 +382,9 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 				SafeDispose(ref sensorServer);
 				SafeDispose(ref xmppClient);
 
-				db?.Stop()?.Wait();
-				db?.Flush()?.Wait();
-
 				Log.Terminate();
+
+				await Types.StopAllModules();
 			}
 		}
 
@@ -648,7 +650,8 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 							MetaInfo2[c] = new MetaDataStringTag("JID", xmppClient?.BareJID);
 						}
 
-						GenerateIoTDiscoUri(MetaInfo2);
+						if (xmppClient is not null)
+							GenerateIoTDiscoUri(MetaInfo2, xmppClient.Host);
 					}
 					else
 					{
@@ -663,7 +666,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 			}, null);
 		}
 
-		private static void GenerateIoTDiscoUri(MetaDataTag[] MetaInfo)
+		private static void GenerateIoTDiscoUri(MetaDataTag[] MetaInfo, string Host)
 		{
 			string FilePath = Path.Combine(Environment.CurrentDirectory, "Sensor.iotdisco");
 			string? DiscoUri = registryClient?.EncodeAsIoTDiscoURI(MetaInfo);
@@ -671,8 +674,18 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 			string? QrCode = M?.ToQuarterBlockText();
 
 			Log.Informational(QrCode);
-
 			File.WriteAllText(FilePath, DiscoUri);
+
+			StringBuilder sb = new();
+
+			sb.AppendLine("[InternetShortcut]");
+			sb.Append("URL=https://");
+			sb.Append(Host);
+			sb.Append("/QR/");
+			sb.Append(HttpUtility.UrlEncode(DiscoUri));
+			sb.AppendLine();
+
+			File.WriteAllText(FilePath + ".url", sb.ToString());
 		}
 
 		private static async Task UpdateRegistration(MetaDataTag[] MetaInfo, string OwnerJid)
@@ -702,7 +715,8 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 							Array.Copy(MetaInfo, 0, MetaInfo2, 0, c);
 							MetaInfo2[c] = new MetaDataStringTag("JID", xmppClient?.BareJID);
 
-							GenerateIoTDiscoUri(MetaInfo2);
+							if (xmppClient is not null)
+								GenerateIoTDiscoUri(MetaInfo2, xmppClient.Host);
 						}
 						else
 						{
@@ -872,11 +886,10 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 		{
 			try
 			{
-				if (DateTime.Now.Second == 0 && xmppClient is not null &&
-					(xmppClient.State == XmppState.Error || xmppClient.State == XmppState.Offline))
-				{
+				Log.Informational("Reading sensor.");
+
+				if (xmppClient is not null && (xmppClient.State == XmppState.Error || xmppClient.State == XmppState.Offline))
 					xmppClient.Reconnect();
-				}
 
 				if (weatherClient is not null)
 				{
