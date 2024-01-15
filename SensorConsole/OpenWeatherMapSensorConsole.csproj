@@ -33,9 +33,9 @@
     <PackageReference Include="Waher.Networking.XMPP.Provisioning" Version="2.0.8" />
     <PackageReference Include="Waher.Networking.XMPP.Sensor" Version="2.1.4" />
     <PackageReference Include="Waher.Persistence" Version="1.10.1" />
-    <PackageReference Include="Waher.Persistence.Files" Version="1.11.4" />
+    <PackageReference Include="Waher.Persistence.Files" Version="1.11.5" />
     <PackageReference Include="Waher.Runtime.Settings" Version="1.0.10" />
-    <PackageReference Include="Waher.Script" Version="2.6.2" />
+    <PackageReference Include="Waher.Script" Version="2.6.4" />
   </ItemGroup>
 
   <ItemGroup>
