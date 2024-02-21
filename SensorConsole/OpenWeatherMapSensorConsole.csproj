@@ -35,7 +35,7 @@
     <PackageReference Include="Waher.Persistence" Version="1.10.1" />
     <PackageReference Include="Waher.Persistence.Files" Version="1.11.5" />
     <PackageReference Include="Waher.Runtime.Settings" Version="1.0.10" />
-    <PackageReference Include="Waher.Script" Version="2.6.5" />
+    <PackageReference Include="Waher.Script" Version="2.6.6" />
   </ItemGroup>
 
   <ItemGroup>
