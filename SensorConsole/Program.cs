@@ -290,13 +290,13 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 
 						try
 						{
-							if (e2.HasFeature(ProvisioningClient.NamespaceProvisioningDevice))
+							if (e2.HasAnyFeature(ProvisioningClient.NamespacesProvisioningDevice))
 							{
 								await RuntimeSettings.SetAsync("ProvisioningServer.JID", provisioningJid = Item.JID);
 								Log.Informational("Provisioning server found.", provisioningJid);
 							}
 
-							if (e2.HasFeature(ThingRegistryClient.NamespaceDiscovery))
+							if (e2.HasAnyFeature(ThingRegistryClient.NamespacesDiscovery))
 							{
 								await RuntimeSettings.SetAsync("ThingRegistry.JID", thingRegistryJid = Item.JID);
 								Log.Informational("Thing registry found.", thingRegistryJid);

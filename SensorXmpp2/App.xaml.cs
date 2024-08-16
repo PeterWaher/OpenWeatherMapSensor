@@ -462,13 +462,13 @@ namespace SensorXmpp
 
 						try
 						{
-							if (e2.HasFeature(ProvisioningClient.NamespaceProvisioningDevice))
+							if (e2.HasAnyFeature(ProvisioningClient.NamespacesProvisioningDevice))
 							{
 								await RuntimeSettings.SetAsync("ProvisioningServer.JID", this.provisioningJid = Item.JID);
 								Log.Informational("Provisioning server found.", this.provisioningJid);
 							}
 
-							if (e2.HasFeature(ThingRegistryClient.NamespaceDiscovery))
+							if (e2.HasAnyFeature(ThingRegistryClient.NamespacesDiscovery))
 							{
 								await RuntimeSettings.SetAsync("ThingRegistry.JID", this.thingRegistryJid = Item.JID);
 								Log.Informational("Thing registry found.", this.thingRegistryJid);
