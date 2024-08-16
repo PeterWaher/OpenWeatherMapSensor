@@ -304,7 +304,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 						}
 						catch (Exception ex)
 						{
-							Log.Critical(ex);
+							Log.Exception(ex);
 						}
 					}
 				}
@@ -334,7 +334,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 						}
 						catch (Exception ex)
 						{
-							Log.Critical(ex);
+							Log.Exception(ex);
 						}
 					};
 
@@ -350,7 +350,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 						}
 						catch (Exception ex)
 						{
-							Log.Critical(ex);
+							Log.Exception(ex);
 						}
 					};
 				}
@@ -437,7 +437,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 			}
 			catch (Exception ex)
 			{
-				Log.Critical(ex);
+				Log.Exception(ex);
 			}
 		}
 
@@ -589,7 +589,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 					}
 					catch (Exception ex)
 					{
-						Log.Critical(ex);
+						Log.Exception(ex);
 					}
 				}
 
@@ -661,7 +661,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 				}
 				catch (Exception ex)
 				{
-					Log.Critical(ex);
+					Log.Exception(ex);
 				}
 			}, null);
 		}
@@ -726,7 +726,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 					}
 					catch (Exception ex)
 					{
-						Log.Critical(ex);
+						Log.Exception(ex);
 					}
 				}, null);
 			}
@@ -900,7 +900,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 					}
 					catch (Exception ex)
 					{
-						Log.Critical(ex);
+						Log.Exception(ex);
 					}
 
 					await SaveHistory(Fields);
@@ -908,7 +908,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 			}
 			catch (Exception ex)
 			{
-				Log.Critical(ex);
+				Log.Exception(ex);
 			}
 		}
 

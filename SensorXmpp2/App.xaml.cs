@@ -173,7 +173,7 @@ namespace SensorXmpp
 			}
 			catch (Exception ex)
 			{
-				Log.Critical(ex);
+				Log.Exception(ex);
 			}
 		}
 
@@ -205,7 +205,7 @@ namespace SensorXmpp
 
 		public static Task Error(Exception ex)
 		{
-			Log.Critical(ex);
+			Log.Exception(ex);
 			return Error(ex.Message);
 		}
 
@@ -476,7 +476,7 @@ namespace SensorXmpp
 						}
 						catch (Exception ex)
 						{
-							Log.Critical(ex);
+							Log.Exception(ex);
 						}
 					}
 				}
@@ -506,7 +506,7 @@ namespace SensorXmpp
 						}
 						catch (Exception ex)
 						{
-							Log.Critical(ex);
+							Log.Exception(ex);
 						}
 					};
 
@@ -522,7 +522,7 @@ namespace SensorXmpp
 						}
 						catch (Exception ex)
 						{
-							Log.Critical(ex);
+							Log.Exception(ex);
 						}
 					};
 				}
@@ -765,7 +765,7 @@ namespace SensorXmpp
 				}
 				catch (Exception ex)
 				{
-					Log.Critical(ex);
+					Log.Exception(ex);
 				}
 			}, null);
 		}
@@ -819,7 +819,7 @@ namespace SensorXmpp
 					}
 					catch (Exception ex)
 					{
-						Log.Critical(ex);
+						Log.Exception(ex);
 					}
 				}, null);
 			}
@@ -989,14 +989,14 @@ namespace SensorXmpp
 				}
 				catch (Exception ex)
 				{
-					Log.Critical(ex);
+					Log.Exception(ex);
 				}
 
 				await this.SaveHistory(Fields);
 			}
 			catch (Exception ex)
 			{
-				Log.Critical(ex);
+				Log.Exception(ex);
 			}
 		}
 
