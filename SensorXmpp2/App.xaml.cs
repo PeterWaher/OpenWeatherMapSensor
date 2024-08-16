@@ -231,6 +231,12 @@ namespace SensorXmpp
 			{
 				#region Initializing system
 
+				Log.RegisterAlertExceptionType(true,
+					typeof(OutOfMemoryException),
+					typeof(StackOverflowException),
+					typeof(AccessViolationException),
+					typeof(InsufficientMemoryException));
+
 				Log.Informational("Starting application.");
 
 				Types.Initialize(
