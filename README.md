@@ -10,7 +10,7 @@ full IoT support. The **Neuron** from [Trust Anchor Group](https://www.trustanch
 Services, and more. If using a traditional [XMPP](https://xmpp.org/) broker, IoT services such as Thing Registry, 
 Provisioning and Decision support will not be available.
 
-Sanbox IoT Brokers that can be used for testing and educational purposes are available at:
+Sandbox IoT Brokers that can be used for testing and educational purposes are available at:
 
 * [waher.se](https://waher.se/Broker.md)
 * [cybercity.online](https://cybercity.online)
