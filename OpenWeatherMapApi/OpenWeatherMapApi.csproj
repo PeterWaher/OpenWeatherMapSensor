@@ -5,8 +5,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Waher.Content" Version="2.6.11" />
-    <PackageReference Include="Waher.Things" Version="2.0.0" />
+    <PackageReference Include="Waher.Content" Version="2.6.12" />
+    <PackageReference Include="Waher.Things" Version="2.0.1" />
   </ItemGroup>
 
 </Project>
