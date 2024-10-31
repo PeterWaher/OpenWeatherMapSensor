@@ -391,6 +391,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 				SafeDispose(ref chatServer);
 				SafeDispose(ref bobClient);
 				SafeDispose(ref sensorServer);
+				SafeDispose(ref controlServer);
 				SafeDispose(ref xmppClient);
 
 				Log.Terminate();
