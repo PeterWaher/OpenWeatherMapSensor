@@ -71,6 +71,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 				Log.Informational("Starting application.");
 
 				Types.Initialize(
+					typeof(Database).GetTypeInfo().Assembly,
 					typeof(FilesProvider).GetTypeInfo().Assembly,
 					typeof(ObjectSerializer).GetTypeInfo().Assembly,    // Waher.Persistence.Serialization was broken out of Waher.Persistence.FilesLW after the publishing of the MIoT book.
 					typeof(RuntimeSettings).GetTypeInfo().Assembly,
@@ -367,7 +368,15 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 
 				await SetupSampleTimer();
 
-				while (true)
+				bool Running = true;
+
+				Console.CancelKeyPress += (_, e) =>
+				{
+					Running = false;
+					e.Cancel = true;
+				};
+
+				while (Running)
 					await Task.Delay(1000);
 			}
 			catch (Exception ex)
