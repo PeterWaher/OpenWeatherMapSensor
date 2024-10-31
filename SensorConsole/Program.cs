@@ -331,6 +331,9 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 
 							await RuntimeSettings.SetAsync("ThingRegistry.Owner", ownerJid = e.JID);
 							await RuntimeSettings.SetAsync("ThingRegistry.Key", string.Empty);
+
+							await Task.Delay(5000);
+							await RegisterDevice();
 						}
 						catch (Exception ex)
 						{
@@ -345,6 +348,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 							Log.Notice("Owner disowned device.", string.Empty, ownerJid);
 
 							await RuntimeSettings.SetAsync("ThingRegistry.Owner", ownerJid = string.Empty);
+
 							await Task.Delay(5000);
 							await RegisterDevice();
 						}
