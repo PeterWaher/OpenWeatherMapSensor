@@ -16,7 +16,7 @@ namespace ActuatorHttp
 
 		public override Task Exception(DateTime _, string Exception)
 		{
-			Log.Exception(Exception);
+			Log.Critical(Exception);
 			return Task.CompletedTask;
 		}
 

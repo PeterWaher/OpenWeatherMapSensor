@@ -376,7 +376,7 @@ namespace SensorXmpp
 							};
 
 							Log.Informational("Connecting to " + this.xmppClient.Host + ":" + this.xmppClient.Port.ToString());
-							this.xmppClient.Connect();
+							await this.xmppClient.Connect();
 
 							switch (await this.xmppClient.WaitStateAsync(10000, XmppState.Connected, XmppState.Error, XmppState.Offline))
 							{
@@ -433,7 +433,11 @@ namespace SensorXmpp
 					return Task.CompletedTask;
 				};
 
-				this.xmppClient.OnPasswordChanged += (Sender, e) => Log.Informational("Password changed.", this.xmppClient.BareJID);
+				this.xmppClient.OnPasswordChanged += (Sender, e) =>
+				{
+					Log.Informational("Password changed.", this.xmppClient.BareJID);
+					return Task.CompletedTask;
+				};
 
 				this.xmppClient.OnPresenceSubscribed += (Sender, e) =>
 				{
@@ -494,6 +498,7 @@ namespace SensorXmpp
 					this.provisioningClient.CacheCleared += (sender, e) =>
 					{
 						Log.Informational("Rule cache cleared.");
+						return Task.CompletedTask;
 					};
 				}
 
@@ -559,11 +564,11 @@ namespace SensorXmpp
 		{
 			this.xmppClient.RegisterIqGetHandler("vCard", "vcard-temp", async (sender, e) =>
 			{
-				e.IqResult(await this.GetVCardXml());
+				await e.IqResult(await this.GetVCardXml());
 			}, true);
 
 			Log.Informational("Setting vCard");
-			this.xmppClient.SendIqSet(string.Empty, await this.GetVCardXml(), (sender, e) =>
+			await this.xmppClient.SendIqSet(string.Empty, await this.GetVCardXml(), (sender, e) =>
 			{
 				if (e.Ok)
 					Log.Informational("vCard successfully set.");
@@ -741,7 +746,7 @@ namespace SensorXmpp
 			Array.Copy(MetaInfo, 0, MetaInfo2, 0, c);
 			MetaInfo2[c] = new MetaDataStringTag("KEY", Key);
 
-			this.registryClient.RegisterThing(false, MetaInfo2, async (sender, e) =>
+			await this.registryClient.RegisterThing(false, MetaInfo2, async (sender, e) =>
 			{
 				try
 				{
@@ -797,7 +802,7 @@ namespace SensorXmpp
 				Log.Informational("Updating registration of device.",
 					new KeyValuePair<string, object>("Owner", OwnerJid));
 
-				this.registryClient.UpdateThing(MetaInfo, async (sender, e) =>
+				await this.registryClient.UpdateThing(MetaInfo, async (sender, e) =>
 				{
 					try
 					{
@@ -870,7 +875,7 @@ namespace SensorXmpp
 					Fields.AddRange(await this.weatherClient.GetData());
 				}
 
-				e.ReportFields(!ReadHistory, Fields);
+				await e.ReportFields(!ReadHistory, Fields);
 
 				if (ReadHistory)
 				{
@@ -898,13 +903,13 @@ namespace SensorXmpp
 					}
 					finally
 					{
-						e.ReportFields(true);
+						await e.ReportFields(true);
 					}
 				}
 			}
 			catch (Exception ex)
 			{
-				e.ReportErrors(true, new ThingError(ThingReference.Empty, ex.Message));
+				await e.ReportErrors(true, new ThingError(ThingReference.Empty, ex.Message));
 			}
 		}
 
@@ -933,7 +938,7 @@ namespace SensorXmpp
 
 				if (ToReport.Count >= fieldBatchSize)
 				{
-					e.ReportFields(false, ToReport.ToArray());
+					await e.ReportFields(false, ToReport.ToArray());
 					ToReport.Clear();
 				}
 
@@ -942,7 +947,7 @@ namespace SensorXmpp
 
 			if (ToReport.Count > 0)
 			{
-				e.ReportFields(false, ToReport.ToArray());
+				await e.ReportFields(false, ToReport.ToArray());
 				ToReport.Clear();
 			}
 
@@ -985,7 +990,7 @@ namespace SensorXmpp
 			try
 			{
 				if (!(this.xmppClient is null) && (this.xmppClient.State == XmppState.Error || this.xmppClient.State == XmppState.Offline))
-					this.xmppClient.Reconnect();
+					await this.xmppClient.Reconnect();
 
 				Field[] Fields = await this.weatherClient.GetData();
 

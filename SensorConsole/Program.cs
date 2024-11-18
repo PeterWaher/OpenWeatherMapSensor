@@ -206,7 +206,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 							};
 
 							Log.Informational("Connecting to " + xmppClient.Host + ":" + xmppClient.Port.ToString());
-							xmppClient.Connect();
+							await xmppClient.Connect();
 
 							switch (await xmppClient.WaitStateAsync(10000, XmppState.Connected, XmppState.Error, XmppState.Offline))
 							{
@@ -256,7 +256,11 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 					return Task.CompletedTask;
 				};
 
-				xmppClient.OnPasswordChanged += (Sender, e) => Log.Informational("Password changed.", xmppClient.BareJID);
+				xmppClient.OnPasswordChanged += (Sender, e) =>
+				{
+					Log.Informational("Password changed.", xmppClient.BareJID);
+					return Task.CompletedTask;
+				};
 
 				xmppClient.OnPresenceSubscribed += (Sender, e) =>
 				{
@@ -317,6 +321,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 					provisioningClient.CacheCleared += (sender, e) =>
 					{
 						Log.Informational("Rule cache cleared.");
+						return Task.CompletedTask;
 					};
 				}
 
@@ -800,7 +805,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 						Fields.AddRange(await weatherClient.GetData());
 				}
 
-				e.ReportFields(!ReadHistory, Fields);
+				await e.ReportFields(!ReadHistory, Fields);
 
 				if (ReadHistory)
 				{
@@ -828,13 +833,13 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 					}
 					finally
 					{
-						e.ReportFields(true);
+						await e.ReportFields(true);
 					}
 				}
 			}
 			catch (Exception ex)
 			{
-				e.ReportErrors(true, new ThingError(ThingReference.Empty, ex.Message));
+				await e.ReportErrors(true, new ThingError(ThingReference.Empty, ex.Message));
 			}
 		}
 
@@ -863,7 +868,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 
 				if (ToReport.Count >= fieldBatchSize)
 				{
-					e.ReportFields(false, ToReport.ToArray());
+					await e.ReportFields(false, ToReport.ToArray());
 					ToReport.Clear();
 				}
 
@@ -872,7 +877,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 
 			if (ToReport.Count > 0)
 			{
-				e.ReportFields(false, ToReport.ToArray());
+				await e.ReportFields(false, ToReport.ToArray());
 				ToReport.Clear();
 			}
 
@@ -917,7 +922,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 				Log.Informational("Reading sensor.");
 
 				if (xmppClient is not null && (xmppClient.State == XmppState.Error || xmppClient.State == XmppState.Offline))
-					xmppClient.Reconnect();
+					await xmppClient.Reconnect();
 
 				if (weatherClient is not null)
 				{
