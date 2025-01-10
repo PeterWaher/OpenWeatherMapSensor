@@ -158,7 +158,7 @@ namespace SensorXmpp
 			this.db?.Stop()?.Wait();
 			this.db?.Flush()?.Wait();
 
-			Log.Terminate();
+			Log.TerminateAsync().Wait();
 
 			deferral.Complete();
 		}
