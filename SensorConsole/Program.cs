@@ -399,7 +399,7 @@ namespace SensorConsole // Note: actual namespace depends on the project name.
 				SafeDispose(ref controlServer);
 				SafeDispose(ref xmppClient);
 
-				Log.Terminate();
+				await Log.TerminateAsync();
 
 				await Types.StopAllModules();
 			}
