@@ -8,6 +8,8 @@ namespace ActuatorHttp
 {
 	public class LogSniffer : SnifferBase
 	{
+		public override BinaryPresentationMethod BinaryPresentationMethod => BinaryPresentationMethod.Hexadecimal;
+
 		public override Task Process(SnifferError Event)
 		{
 			Log.Error(Event.Text);
